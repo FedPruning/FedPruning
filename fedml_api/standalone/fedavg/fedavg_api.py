@@ -61,9 +61,11 @@ class FedAvgAPI(object):
                                             self.train_data_local_num_dict[client_idx])
 
                 # train on new dataset
-                w = client.train(copy.deepcopy(w_global))
+                w = client.train(w_global)
+                #w = client.train(copy.deepcopy(w_global))
                 # self.logger.info("local weights = " + str(w))
-                w_locals.append((client.get_sample_number(), copy.deepcopy(w)))
+                #w_locals.append((client.get_sample_number(), copy.deepcopy(w)))
+                w_locals.append((client.get_sample_number(), w))
 
             # update global weights
             w_global = self._aggregate(w_locals)
