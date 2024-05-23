@@ -33,7 +33,7 @@ class Client:
         self.model_trainer.set_model_params(local_w_global)
         self.model_trainer.train(self.local_training_data, self.device, self.args)
         weights = self.model_trainer.get_model_params()
-        logging.debug("Trained local weights: " + str(weights)) 
+        #logging.debug("Trained local weights: " + str(weights)) 
         return weights
 
     def local_test(self, b_use_test_dataset):
