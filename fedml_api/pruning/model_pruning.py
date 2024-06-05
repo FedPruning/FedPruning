@@ -13,6 +13,8 @@ class SparseModel(nn.Module):
                  ignore_layers:list[int, str, type]=[0, "bias", nn.BatchNorm2d, "bn"]
                  ):
         super(SparseModel, self).__init__()
+        # strategy is a str that [sparsity_distribution]_[pruning_strategy]
+        # e.g. uniform_magnitude
 
         self.inner_model = inner_model
         self.mask_dict = mask_dict
@@ -20,7 +22,14 @@ class SparseModel(nn.Module):
         self.target_density = target_density
         self.ignore_layers = ignore_layers
 
+        # layer_set includes all layer names
+        # num_elements_dict includes the number of elements in every layer
+        # num_overall_elements is the number of parameters in the whole model
         self.layer_set, self.num_elements_dict, self.num_overall_elements = self._stat_layer_info()
+
+        # mask_dict only includes the mask of layer that should be pruned(a.k.a sparse layer)
+        # sparse_layer_set the name of the sparse layer
+        # layer_density_dict includes the layer-wise densities for sparse layer (not include ignored layers)
 
         if self.mask_dict:
             self.layer_density_dict = self._stat_density_info()
@@ -28,9 +37,6 @@ class SparseModel(nn.Module):
         else:
             self.sparse_layer_set = self._determine_sparse_layers()
             self.layer_density_dict, self.mask_dict = self._init_prune()
-            # temporary usage
-
-
 
     def to(self, device=None, *args, **kwargs):
         if not device:
@@ -176,4 +182,3 @@ if __name__ == "__main__":
     print(actual_density)
     print("######### actual layer wise density ###########")
     print(actual_layer_wise_density)
-
