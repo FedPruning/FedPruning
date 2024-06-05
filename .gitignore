@@ -1,0 +1,10 @@
+fedml_api/model/cv/__pycache__/
+fedml_api/standalone/fedavg/__pycache__/
+fedml_core/__pycache__/
+fedml_core/trainer/__pycache__/
+fedml_experiments/standalone/fedavg/wandb/
+.idea
+data/*
+fedml_api/pruning/__pycache__/
+fedml_api/data_preprocessing/cifar10/__pycache__/
+fedml_api/data_preprocessing/__pycache__/

@@ -17,8 +17,9 @@ Heterogeneous distribution (Non-IID) experiment:
 
 Frond-end debugging:
 ``` 
-## MNIST
-sh run_fedavg_standalone_pytorch.sh 0 1000 10 10 mnist ./../../../data/mnist lr hetero 200 1 0.03 sgd 0
+## CIFAR10
+sh run_fedavg_standalone_pytorch.sh 0 100 1 
+64 cifar10 ./../../../data/cifar10 resnet18 hetero 200 1 0.03 sgd 0
 ``` 
 reference experimental result: https://app.wandb.ai/automl/fedml/runs/ybv29kak
 
