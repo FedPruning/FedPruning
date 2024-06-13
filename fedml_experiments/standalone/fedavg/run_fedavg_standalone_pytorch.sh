@@ -20,11 +20,15 @@ ROUND=$9
 
 EPOCH=${10}
 
-LR=${11}
+ILR=${11}
 
-OPT=${12}
+FLR=${12}
 
-CI=${13}
+WD=${13}
+
+OPT=${14}
+
+CI=${15}
 
 python3 ./main_fedavg.py \
 --gpu $GPU \
@@ -38,5 +42,7 @@ python3 ./main_fedavg.py \
 --epochs $EPOCH \
 --batch_size $BATCH_SIZE \
 --client_optimizer $OPT \
---lr $LR \
+--initial_lr $ILR \
+--final_lr   $FLR \
+--wd         $WD  \
 --ci $CI
