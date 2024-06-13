@@ -61,7 +61,7 @@ The experimental result refers to: https://wandb.ai/automl/fedml/runs/7pf2c9r2
 
 ``` 
 # CIFAR10
-sh run_fedavg_standalone_pytorch.sh 0 10 10 10 cifar10 ./../../../data/cifar10 resnet56 hetero 200 1 0.03 sgd 0
+sh run_fedavg_standalone_pytorch.sh 0 10 10 10 cifar10 ./../../../data/cifar10 resnet56 hetero 200 1 0.1 0.01 0.001 sgd 0
 ```
 
 Please make sure to run on the background when you start training after debugging. An example to run on the background:
