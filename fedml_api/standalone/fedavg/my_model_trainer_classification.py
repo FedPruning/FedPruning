@@ -2,7 +2,7 @@ import logging
 
 import torch
 from torch import nn
-
+import math
 try:
     from fedml_core.trainer.model_trainer import ModelTrainer
 except ImportError:
@@ -25,13 +25,20 @@ class MyModelTrainer(ModelTrainer):
         # train and update
         criterion = nn.CrossEntropyLoss().to(device)
         if args.client_optimizer == "sgd":
-            optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, self.model.parameters()), lr=args.lr)
+            optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, self.model.parameters()), lr=args.inital_lr)
         else:
-            optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, self.model.parameters()), lr=args.lr,
+            optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, self.model.parameters()), lr=args.initial_lr,
                                          weight_decay=args.wd, amsgrad=True)
+        initial_lr = args.initial_lr
+        final_lr = args.final_lr
+
 
         epoch_loss = []
         for epoch in range(args.epochs):
+            # Calculate the decayed learning rate
+            current_lr = initial_lr * math.exp((epoch / args.epochs) * math.log(final_lr / initial_lr))
+            for param_group in optimizer.param_groups:
+                param_group['lr'] = current_lr
             batch_loss = []
             for batch_idx, (x, labels) in enumerate(train_data):
                 x, labels = x.to(device), labels.to(device)
