@@ -73,6 +73,9 @@ def add_args(parser):
 
     parser.add_argument('--ci', type=int, default=0,
                         help='CI')
+    
+    parser.add_argument('--target_density', type=float, default=0.5,
+                        help='pruning target density')
     return parser
 
 
