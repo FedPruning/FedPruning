@@ -157,7 +157,7 @@ if __name__ == "__main__":
 
     wandb.init(
         project="fedml",
-        name="FedAVG-r" + str(args.comm_round) + "-e" + str(args.epochs) + "-lr" + str(args.lr),
+        name="FedAVG-r" + str(args.comm_round) + "-e" + str(args.epochs) + "-initial_lr" + str(args.lr),
         config=args
     )
 
