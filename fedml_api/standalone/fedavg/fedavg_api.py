@@ -36,7 +36,7 @@ class FedAvgAPI(object):
 
             # create sparse model
             #sparse_model = SparseModel(model_trainer.get_model(), target_density=self.args.target_density)
-            sparse_model = SparseModel(model_trainer.model(), target_density=self.args.target_density)
+            sparse_model = SparseModel(model_trainer.model, target_density=self.args.target_density)
             sparse_model.to(self.device)
 
             c = Client(client_idx, train_data_local_dict[client_idx], test_data_local_dict[client_idx],
