@@ -1,7 +1,7 @@
 import torch
 from typing import Dict, List
 from torch import nn
-from fedml_api.pruning.init_scheme import generate_layer_density_dict, pruning
+from init_scheme import generate_layer_density_dict, pruning
 import warnings
 
 
