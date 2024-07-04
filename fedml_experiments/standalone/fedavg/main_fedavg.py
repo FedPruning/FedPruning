@@ -137,6 +137,8 @@ def create_model(args, model_name, output_dim):
     model = None
     if model_name == "resnet18":
         model = resnet18(num_classes=output_dim)
+    if model_name == "resnet56":
+        model = resnet56(num_classes=output_dim)
     return model
 
 
