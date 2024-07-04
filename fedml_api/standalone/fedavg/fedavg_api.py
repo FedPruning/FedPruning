@@ -35,13 +35,14 @@ class FedAvgAPI(object):
         for client_idx in range(self.args.client_num_per_round):
 
             # create sparse model
-            if model_trainer.model is None:
-                raise ValueError("Model is not initialized in ModelTrainer")
-            sparse_model = SparseModel(model_trainer.model, target_density=self.args.target_density)
-            sparse_model.to(self.device)
-
+            #sparse_model = SparseModel(model_trainer.model, target_density=self.args.target_density)
+            #sparse_model.to(self.device)
+            #c = Client(client_idx, train_data_local_dict[client_idx], test_data_local_dict[client_idx],
+            #           train_data_local_num_dict[client_idx], self.args, self.device, sparse_model)
             c = Client(client_idx, train_data_local_dict[client_idx], test_data_local_dict[client_idx],
-                       train_data_local_num_dict[client_idx], self.args, self.device, sparse_model)
+                       rain_data_local_num_dict[client_idx], self.args, self.device, model_trainer)
+
+            
             self.client_list.append(c)
         logging.info("############setup_clients (END)#############")
 
