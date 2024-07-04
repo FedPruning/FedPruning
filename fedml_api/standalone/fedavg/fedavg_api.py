@@ -40,7 +40,7 @@ class FedAvgAPI(object):
             #c = Client(client_idx, train_data_local_dict[client_idx], test_data_local_dict[client_idx],
             #           train_data_local_num_dict[client_idx], self.args, self.device, sparse_model)
             c = Client(client_idx, train_data_local_dict[client_idx], test_data_local_dict[client_idx],
-                       rain_data_local_num_dict[client_idx], self.args, self.device, model_trainer)
+                       train_data_local_num_dict[client_idx], self.args, self.device, model_trainer)
 
             
             self.client_list.append(c)
