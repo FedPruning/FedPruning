@@ -35,6 +35,8 @@ class FedAvgAPI(object):
         for client_idx in range(self.args.client_num_per_round):
 
             # create sparse model
+            if model_trainer.model is None:
+                raise ValueError("Model is not initialized in ModelTrainer")
             sparse_model = SparseModel(model_trainer.model, target_density=self.args.target_density)
             sparse_model.to(self.device)
 
