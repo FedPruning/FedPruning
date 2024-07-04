@@ -25,7 +25,7 @@ class MyModelTrainer(ModelTrainer):
         # train and update
         criterion = nn.CrossEntropyLoss().to(device)
         if args.client_optimizer == "sgd":
-            optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, self.model.parameters()), lr=args.inital_lr)
+            optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, self.model.parameters()), lr=args.initial_lr)
         else:
             optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, self.model.parameters()), lr=args.initial_lr,
                                          weight_decay=args.wd, amsgrad=True)
