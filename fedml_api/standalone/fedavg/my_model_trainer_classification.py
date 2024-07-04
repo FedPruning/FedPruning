@@ -9,10 +9,7 @@ except ImportError:
     from FedML.fedml_core.trainer.model_trainer import ModelTrainer
 
 
-class MyModelTrainer(ModelTrainer):
-    def get_model(self,args):
-        return args.model()
-        
+class MyModelTrainer(ModelTrainer):        
     def get_model_params(self):
         return self.model.cpu().state_dict()
 
