@@ -180,9 +180,6 @@ if __name__ == "__main__":
     model_trainer = custom_model_trainer(args, model)
     logging.info(model)
 
-    if model_trainer.model is None:
-       raise ValueError("Model is not initialized in ModelTrainer")
-
 
     fedavgAPI = FedAvgAPI(dataset, device, args, model_trainer)
     fedavgAPI.train()
