@@ -14,8 +14,8 @@ from fedml_api.data_preprocessing.cifar10.data_loader import load_partition_data
 
 from fedml_api.model.cv.resnet_gn import resnet18
 
-from fedml_api.standalone.fedavg.fedavg_api import FedAvgAPI
-from fedml_api.standalone.fedavg.my_model_trainer_classification import MyModelTrainer as MyModelTrainerCLS
+from fedml_api.standalone.fedprune.fedprune_api import FedPruneAPI
+from fedml_api.standalone.fedprune.my_model_trainer_classification import MyModelTrainer as MyModelTrainerCLS
 
 
 
@@ -152,7 +152,7 @@ if __name__ == "__main__":
 
     wandb.init(
         project="fedml",
-        name="FedAVG-r" + str(args.comm_round) + "-e" + str(args.epochs) + "-lr" + str(args.lr),
+        name="Fedprune-r" + str(args.comm_round) + "-e" + str(args.epochs) + "-lr" + str(args.lr),
         config=args
     )
 
@@ -175,5 +175,5 @@ if __name__ == "__main__":
     model_trainer = custom_model_trainer(args, model)
     logging.info(model)
 
-    fedavgAPI = FedAvgAPI(dataset, device, args, model_trainer)
-    fedavgAPI.train()
+    fedpruneAPI = FedPruneAPI(dataset, device, args, model_trainer)
+    fedpruneAPI.train()

@@ -6,10 +6,11 @@ import numpy as np
 import torch
 import wandb
 
-from fedml_api.standalone.fedavg.client import Client
+from fedml_api.standalone.fedprune.client import Client
+from fedml_api.pruning.init_scheme import generate_layer_density_dict, pruning
+from fedml_api.pruning.model_pruning import SparseModel
 
-
-class FedAvgAPI(object):
+class FedPruneAPI(object):
     def __init__(self, dataset, device, args, model_trainer):
         self.device = device
         self.args = args
