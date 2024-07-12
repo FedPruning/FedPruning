@@ -23,6 +23,8 @@ class SparseModel(nn.Module):
         self.target_density = target_density
         self.ignore_layers = ignore_layers
 
+        self.id = 0
+
         # layer_set includes all layer names
         # num_elements_dict includes the number of elements in every layer
         # num_overall_elements is the number of parameters in the whole model
