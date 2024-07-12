@@ -41,5 +41,5 @@ python3 ./main_fedprune.py \
 --batch_size $BATCH_SIZE \
 --client_optimizer $OPT \
 --lr $LR \
---ci $CI
+--ci $CI \
 --target_density $DENSITY
