@@ -30,7 +30,7 @@ OPT=${14}
 
 CI=${15}
 
-DENSITY=${16}
+
 
 python3 ./main_fedavg.py \
 --gpu $GPU \
@@ -48,4 +48,4 @@ python3 ./main_fedavg.py \
 --final_lr   $FLR \
 --wd         $WD  \
 --ci $CI \
---target_density $DENSITY
+

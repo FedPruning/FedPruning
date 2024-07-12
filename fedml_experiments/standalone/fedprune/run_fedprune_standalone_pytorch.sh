@@ -26,6 +26,8 @@ OPT=${12}
 
 CI=${13}
 
+DENSITY=${16}
+
 python3 ./main_fedprune.py \
 --gpu $GPU \
 --dataset $DATASET \
@@ -40,3 +42,4 @@ python3 ./main_fedprune.py \
 --client_optimizer $OPT \
 --lr $LR \
 --ci $CI
+--target_density $DENSITY
