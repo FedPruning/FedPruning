@@ -78,7 +78,7 @@ class SparseModel(nn.Module):
                 log_probs = model(x)
                 loss = criterion(log_probs, labels)
                 loss.backward()
-                self.model.apply_mask_gradients()  # apply pruning mask
+                #self.model.apply_mask_gradients()  # apply pruning mask
 
                 # Uncommet this following line to avoid nan loss
                 # torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
