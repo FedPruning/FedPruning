@@ -7,7 +7,7 @@ import logging
 
 
 class SparseModel(nn.Module):
-    def __init__(self, inner_model,
+    def __init__(self, model,
                  target_density:float=1.,
                  strategy:str="uniform_magnitude",
                  mask_dict: dict = {},
@@ -17,7 +17,7 @@ class SparseModel(nn.Module):
         # strategy is a str that [sparsity_distribution]_[pruning_strategy]
         # e.g. uniform_magnitude
 
-        self.inner_model = inner_model
+        self.model = model
         self.mask_dict = mask_dict
         self.strategy = strategy
         self.target_density = target_density
@@ -40,16 +40,16 @@ class SparseModel(nn.Module):
             self.layer_density_dict, self.mask_dict = self._init_prune()
 
     def get_model(self):
-        return self.inner_model
+        return self.model
 
     def get_model_params(self):
-        return self.inner_model.cpu().state_dict()
+        return self.model.cpu().state_dict()
 
     def set_model_params(self, model_parameters):
-        self.inner_model.load_state_dict(model_parameters, strict=False)
+        self.model.load_state_dict(model_parameters, strict=False)
 
     def train(self, train_data, device, args):
-        model = self.inner_model
+        model = self.model
 
         model.to(device)
         model.train()
@@ -95,9 +95,9 @@ class SparseModel(nn.Module):
 
     def to(self, device=None, *args, **kwargs):
         if not device:
-            device = self.inner_model.device
+            device = self.model.device
 
-        self.inner_model.to(device)
+        self.model.to(device)
         for name in self.mask_dict:
             self.mask_dict[name] = self.mask_dict[name].to(device)
 
@@ -129,7 +129,7 @@ class SparseModel(nn.Module):
         for partial_name in ignore_partial_names:
             sparse_layer_set = _remove_by_name(sparse_layer_set, partial_name,)
 
-        for e, (name, module) in enumerate(self.inner_model.named_modules()):
+        for e, (name, module) in enumerate(self.model.named_modules()):
             if name in sparse_layer_set:
                 if e in ignore_layer_idx:
                     sparse_layer_set.remove(name)
@@ -146,7 +146,7 @@ class SparseModel(nn.Module):
         layer_set = set()
         num_elements_dict = {}
         num_overall_elements = 0
-        for name, weight in self.inner_model.named_parameters():
+        for name, weight in self.model.named_parameters():
             layer_set.add(name)
             num_elements_dict[name] = weight.numel()
             num_overall_elements += weight.numel()
@@ -154,7 +154,7 @@ class SparseModel(nn.Module):
 
     def _stat_density_info(self):
         layer_density_dict = 0
-        for name, weight in self.inner_model.named_parameters():
+        for name, weight in self.model.named_parameters():
             if name in self.mask_dict:
                 remains = self.mask_dict[name].sum().item()
                 overall = self.mask_dict[name].numel()
@@ -166,7 +166,7 @@ class SparseModel(nn.Module):
     def _init_prune(self, **kwargs):
         layer_density_strategy, pruning_strategy = self.strategy.split("_")
         layer_density_dict = generate_layer_density_dict(self.num_elements_dict, self.num_overall_elements,self.sparse_layer_set, self.target_density, layer_density_strategy)
-        model_mask = pruning(self.inner_model, layer_density_dict, pruning_strategy)
+        model_mask = pruning(self.model, layer_density_dict, pruning_strategy)
         return layer_density_dict, model_mask
     
 
@@ -174,7 +174,7 @@ class SparseModel(nn.Module):
 
     @torch.no_grad()
     def apply_mask(self):
-        for name, weight in self.inner_model.named_parameters():
+        for name, weight in self.model.named_parameters():
             if name in self.mask_dict:
                 weight.data = weight.data * self.mask_dict[name]
 
@@ -190,13 +190,13 @@ class SparseModel(nn.Module):
     def forward(self, x):
         # mask weight
         self.apply_mask()
-        y = self.inner_model(x)
+        y = self.model(x)
         return y
 
     def stat_actual_density(self):
         num_remain_elements = 0
         actual_layer_wise_density = {}
-        for name, weight in self.inner_model.named_parameters():
+        for name, weight in self.model.named_parameters():
             layer_remain_elements = torch.sum(weight != 0. ).item()
             num_remain_elements += layer_remain_elements
             actual_layer_wise_density[name] = layer_remain_elements / weight.numel()
