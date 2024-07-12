@@ -26,7 +26,7 @@ OPT=${12}
 
 CI=${13}
 
-DENSITY=${16}
+DENSITY=${14}
 
 python3 ./main_fedprune.py \
 --gpu $GPU \
