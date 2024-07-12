@@ -113,6 +113,16 @@ class SparseModel(nn.Module):
         layer_density_dict = generate_layer_density_dict(self.num_elements_dict, self.num_overall_elements,self.sparse_layer_set, self.target_density, layer_density_strategy)
         model_mask = pruning(self.inner_model, layer_density_dict, pruning_strategy)
         return layer_density_dict, model_mask
+    
+    def get_model(self):
+        return self.inner_model
+
+    def get_model_params(self):
+        return self.inner_model.cpu().state_dict()
+
+    def set_model_params(self, model_parameters):
+        self.inner_model.load_state_dict(model_parameters, strict=False)
+
 
     @torch.no_grad()
     def apply_mask(self):
