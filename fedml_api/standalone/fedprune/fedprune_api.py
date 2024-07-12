@@ -35,12 +35,13 @@ class FedPruneAPI(object):
         for client_idx in range(self.args.client_num_per_round):
 
             # create sparse model
-            #sparse_model = SparseModel(model_trainer.model, target_density=self.args.target_density)
-            #sparse_model.to(self.device)
-            #c = Client(client_idx, train_data_local_dict[client_idx], test_data_local_dict[client_idx],
-            #           train_data_local_num_dict[client_idx], self.args, self.device, sparse_model)
+
+            sparse_model = SparseModel(model_trainer.get_model(), target_density=self.args.target_density)
+            sparse_model.to(self.device)
             c = Client(client_idx, train_data_local_dict[client_idx], test_data_local_dict[client_idx],
-                       train_data_local_num_dict[client_idx], self.args, self.device, model_trainer)
+                      train_data_local_num_dict[client_idx], self.args, self.device, sparse_model)
+            #c = Client(client_idx, train_data_local_dict[client_idx], test_data_local_dict[client_idx],
+            #          train_data_local_num_dict[client_idx], self.args, self.device, model_trainer)
 
             
             self.client_list.append(c)
