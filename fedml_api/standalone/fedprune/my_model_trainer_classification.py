@@ -11,6 +11,9 @@ except ImportError:
 
 class MyModelTrainer(ModelTrainer):
 
+    def get_model(self):
+        return self.model
+
     def get_model_params(self):
         return self.model.cpu().state_dict()
 
