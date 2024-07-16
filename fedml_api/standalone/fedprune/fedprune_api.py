@@ -7,8 +7,6 @@ import torch
 import wandb
 
 from fedml_api.standalone.fedprune.client import Client
-from fedml_api.pruning.init_scheme import generate_layer_density_dict, pruning
-from fedml_api.pruning.model_pruning import SparseModel
 
 class FedPruneAPI(object):
     def __init__(self, dataset, device, args, model_trainer):
@@ -33,18 +31,10 @@ class FedPruneAPI(object):
     def _setup_clients(self, train_data_local_num_dict, train_data_local_dict, test_data_local_dict, model_trainer):
         logging.info("############setup_clients (START)#############")
         for client_idx in range(self.args.client_num_per_round):
-
-            # create sparse model
-
-            sparse_model = SparseModel(model_trainer.get_model(), target_density=self.args.target_density)
-            sparse_model.apply_mask()
             #sparse_model.to(self.device)
             
             c = Client(client_idx, train_data_local_dict[client_idx], test_data_local_dict[client_idx],
-                      train_data_local_num_dict[client_idx], self.args, self.device, sparse_model)
-            #c = Client(client_idx, train_data_local_dict[client_idx], test_data_local_dict[client_idx],
-            #          train_data_local_num_dict[client_idx], self.args, self.device, model_trainer)
-
+                     train_data_local_num_dict[client_idx], self.args, self.device, model_trainer)
             
             self.client_list.append(c)
         logging.info("############setup_clients (END)#############")

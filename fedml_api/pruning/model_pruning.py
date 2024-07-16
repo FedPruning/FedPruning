@@ -3,7 +3,6 @@ from typing import Dict, List
 from torch import nn
 from fedml_api.pruning.init_scheme import generate_layer_density_dict, pruning
 import warnings
-import logging
 
 
 class SparseModel(nn.Module):
@@ -23,7 +22,6 @@ class SparseModel(nn.Module):
         self.target_density = target_density
         self.ignore_layers = ignore_layers
 
-        self.id = 0
 
         # layer_set includes all layer names
         # num_elements_dict includes the number of elements in every layer
@@ -40,59 +38,6 @@ class SparseModel(nn.Module):
         else:
             self.sparse_layer_set = self._determine_sparse_layers()
             self.layer_density_dict, self.mask_dict = self._init_prune()
-
-    def get_model(self):
-        return self.model
-
-    def get_model_params(self):
-        return self.model.cpu().state_dict()
-
-    def set_model_params(self, model_parameters):
-        self.model.load_state_dict(model_parameters, strict=False)
-
-    def train(self, train_data, device, args):
-        model = self.model
-
-        model.to(device)
-        model.train()
-
-        # train and update
-        criterion = nn.CrossEntropyLoss().to(device)
-        if args.client_optimizer == "sgd":
-            optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, self.model.parameters()), lr=args.lr)
-        else:
-            optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, self.model.parameters()), lr=args.lr,
-                                         weight_decay=args.wd, amsgrad=True)
-      #  initial_lr = args.initial_lr
-      # final_lr = args.final_lr
-
-
-        epoch_loss = []
-        for epoch in range(args.epochs):
-            # Calculate the decayed learning rate
-            #current_lr = initial_lr * math.exp((epoch / args.epochs) * math.log(final_lr / initial_lr))
-            #for param_group in optimizer.param_groups:
-            #    param_group['lr'] = current_lr
-            batch_loss = []
-            for batch_idx, (x, labels) in enumerate(train_data):
-                x, labels = x.to(device), labels.to(device)
-                model.zero_grad()
-                log_probs = model(x)
-                loss = criterion(log_probs, labels)
-                loss.backward()
-                #self.model.apply_mask_gradients()  # apply pruning mask
-
-                # Uncommet this following line to avoid nan loss
-                # torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
-
-                optimizer.step()
-                # logging.info('Update Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                #     epoch, (batch_idx + 1) * args.batch_size, len(train_data) * args.batch_size,
-                #            100. * (batch_idx + 1) / len(train_data), loss.item()))
-                batch_loss.append(loss.item())
-            epoch_loss.append(sum(batch_loss) / len(batch_loss))
-            logging.info('Client Index = {}\tEpoch: {}\tLoss: {:.6f}'.format(
-                self.id, epoch, sum(epoch_loss) / len(epoch_loss)))
 
 
     def to(self, device=None, *args, **kwargs):
@@ -214,7 +159,7 @@ if __name__ == "__main__":
     from torchvision.models import resnet18
     model = resnet18()
     sparse_model = SparseModel(model, target_density=0.5, )
-    sparse_model.apply_mask()
+    #sparse_model.apply_mask()
     sparse_layer_set = sparse_model.sparse_layer_set
     print("#########ignored layers##########")
     print(sparse_model.layer_set - sparse_layer_set)

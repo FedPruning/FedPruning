@@ -17,6 +17,7 @@ from fedml_api.model.cv.resnet_gn import resnet18
 from fedml_api.standalone.fedprune.fedprune_api import FedPruneAPI
 from fedml_api.standalone.fedprune.my_model_trainer_classification import MyModelTrainer as MyModelTrainerCLS
 
+from fedml_api.pruning.model_pruning import SparseModel
 
 
 def add_args(parser):
@@ -175,7 +176,8 @@ if __name__ == "__main__":
     # create model.
     # Note if the model is DNN (e.g., ResNet), the training will be very slow.
     # In this case, please use our FedML distributed version (./fedml_experiments/distributed_fedavg)
-    model = create_model(args, model_name=args.model, output_dim=dataset[7])
+    inner_model = create_model(args, model_name=args.model, output_dim=dataset[7])
+    model=SparseModel(inner_model, target_density=0.5, )
     model_trainer = custom_model_trainer(args, model)
     logging.info(model)
 
