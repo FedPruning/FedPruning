@@ -110,10 +110,10 @@ class MyModelTrainer(ModelTrainer):
         return False
     
 def sparse_train_step(model, optimizer, data, target, mask_dict, t, delta_T, T_end, alpha, layer_density_dict): #rigL
-    model.train()
-    optimizer.zero_grad()
-    output = model(data)
-    loss = nn.CrossEntropyLoss()(output, target)
+    #model.train()
+    model.zero_grad()
+    log_probs = model(data)
+    loss = criterion(log_probs, target)
     loss.backward()
     if t % delta_T == 0 and t < T_end:
         for name, param in model.named_parameters():
