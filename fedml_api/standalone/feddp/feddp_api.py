@@ -9,7 +9,7 @@ import wandb
 from fedml_api.standalone.feddp.client import Client
 
 
-class FedAvgAPI(object):
+class FedDpAPI(object):
     def __init__(self, dataset, device, args, model_trainer):
         self.device = device
         self.args = args

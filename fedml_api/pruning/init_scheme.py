@@ -53,6 +53,7 @@ def pruning(model, layer_density_dict, pruning_strategy):
             else:
                 raise Exception(f"pruning strategy {pruning_strategy} is not supported")
     return mask_dict
+
 def magnitude_prune(weight, mask, num_elements, density):
     num_remove = num_elements - int(num_elements * density)
 
@@ -66,3 +67,32 @@ def random_prune(mask, num_elements, density):
     random.shuffle(idx)
     mask.data.view(-1)[idx[num_remove:]] = 1.0
     return mask
+
+
+def f_decay(t, alpha, T_end):
+    return int(alpha * (1 - t / T_end))
+
+
+def growing(model, mask_dict, growth_percentage):
+    grad_dict = {}
+    for name, param in model.named_parameters():
+        if param.grad is not None and name in mask_dict:
+            grad_dict[name] = param.grad.abs().view(-1)
+    
+    for name, mask in mask_dict.items():
+        if name in grad_dict:
+            num_elements = mask.numel()
+            num_grow = int(num_elements * growth_percentage)
+
+            grad = grad_dict[name]
+            inactive_indices = (mask.view(-1) == 0).nonzero(as_tuple=False).view(-1)
+            grad_inactive = grad[inactive_indices]
+
+            _, topk_indices = torch.topk(grad_inactive, num_grow, sorted=False)
+            new_growth_indices = inactive_indices[topk_indices]
+
+            mask.view(-1)[new_growth_indices] = 1.0
+
+    return mask_dict
+
+

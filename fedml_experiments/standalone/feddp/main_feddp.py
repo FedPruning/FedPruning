@@ -181,5 +181,5 @@ if __name__ == "__main__":
     model_trainer = custom_model_trainer(args, model)
     logging.info(model)
 
-    fedpruneAPI = FedDpAPI(dataset, device, args, model_trainer)
-    fedpruneAPI.train()
+    feddpAPI = FedDpAPI(dataset, device, args, model_trainer)
+    feddpAPI.train()
