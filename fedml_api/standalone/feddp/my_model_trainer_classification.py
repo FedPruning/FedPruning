@@ -133,4 +133,4 @@ def sparse_train_step(model, optimizer, criterion,data, target, mask_dict, t, de
     for name, param in model.named_parameters():
         if name in mask_dict:
             param.data *= mask_dict[name]
-    return loss.item()
+    return loss
