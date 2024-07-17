@@ -34,7 +34,7 @@ class MyModelTrainer(ModelTrainer):
 
 
         # train and update
-        #criterion = nn.CrossEntropyLoss().to(device)
+        criterion = nn.CrossEntropyLoss().to(device)
         if args.client_optimizer == "sgd":
             optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, self.model.parameters()), lr=args.lr)
         else:
@@ -57,7 +57,7 @@ class MyModelTrainer(ModelTrainer):
             batch_loss = []
             for batch_idx, (x, labels) in enumerate(train_data):
                 x, labels = x.to(device), labels.to(device)
-                loss = sparse_train_step(model, optimizer, x, labels, mask_dict, t=epoch*len(train_data)+batch_idx, 
+                loss = sparse_train_step(model, optimizer,criterion, x, labels, mask_dict, t=epoch*len(train_data)+batch_idx, 
                         delta_T=delta_T, T_end=T_end, alpha=alpha, layer_density_dict=layer_density_dict)
                 #model.zero_grad()
                 #log_probs = model(x)
@@ -109,10 +109,11 @@ class MyModelTrainer(ModelTrainer):
     def test_on_the_server(self, train_data_local_dict, test_data_local_dict, device, args=None) -> bool:
         return False
     
-def sparse_train_step(model, optimizer, data, target, mask_dict, t, delta_T, T_end, alpha, layer_density_dict): #rigL
+def sparse_train_step(model, optimizer, criterion,data, target, mask_dict, t, delta_T, T_end, alpha, layer_density_dict): #rigL
     #model.train()
     model.zero_grad()
     log_probs = model(data)
+    
     loss = criterion(log_probs, target)
     loss.backward()
     if t % delta_T == 0 and t < T_end:
