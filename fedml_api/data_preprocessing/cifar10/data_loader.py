@@ -233,11 +233,13 @@ def load_partition_data_distributed_cifar10(process_id, dataset, data_dir, parti
 
 
 def load_partition_data_cifar10(dataset, data_dir, partition_method, partition_alpha, client_number, batch_size, silo_proc_num=0):
-    X_train, y_train, X_test, y_test, net_dataidx_map, traindata_cls_counts = partition_data(dataset,
-                                                                                             data_dir,
-                                                                                             partition_method,
-                                                                                             client_number,
-                                                                                             partition_alpha)
+    # a lot of value are useless, 
+    # e.g. X_train, y_train, X_test, y_test
+    # a lot return are duplicated, e.g. 
+    # train_data_global is useless and test_data_local_dict is same with test_data_global.
+    # in fact, it also need to be devided. 
+    # Or it do not need to return. 
+    X_train, y_train, X_test, y_test, net_dataidx_map, traindata_cls_counts = partition_data(dataset, data_dir, partition_method, client_number, partition_alpha)
     class_num = len(np.unique(y_train))
     logging.info("traindata_cls_counts = " + str(traindata_cls_counts))
     train_data_num = sum([len(net_dataidx_map[r]) for r in range(client_number)])
@@ -259,8 +261,7 @@ def load_partition_data_cifar10(dataset, data_dir, partition_method, partition_a
         logging.info("client_idx = %d, local_sample_number = %d" % (client_idx, local_data_num))
 
         # training batch size = 64; algorithms batch size = 32
-        train_data_local, test_data_local = get_dataloader(dataset, data_dir, batch_size, batch_size,
-                                                 dataidxs)
+        train_data_local, test_data_local = get_dataloader(dataset, data_dir, batch_size, batch_size, dataidxs)
         logging.info("client_idx = %d, batch_num_train_local = %d, batch_num_test_local = %d" % (
             client_idx, len(train_data_local), len(test_data_local)))
         train_data_local_dict[client_idx] = train_data_local
