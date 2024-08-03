@@ -20,6 +20,10 @@ class MyModelTrainer(ModelTrainer):
 
     def set_model_params(self, model_parameters):
         self.model.load_state_dict(model_parameters, strict=False)
+    
+    def get_model_gradients(self):
+        gradients = {name: param.grad for name, param in self.model.named_parameters()}
+        return  gradients
 
 
 
@@ -28,10 +32,6 @@ class MyModelTrainer(ModelTrainer):
 
         model.to(device)
         model.train()
-
-        mask_dict=model.mask_dict
-        layer_density_dict=model.layer_density_dict
-
 
         # train and update
         criterion = nn.CrossEntropyLoss().to(device)
@@ -45,10 +45,6 @@ class MyModelTrainer(ModelTrainer):
 
 
         epoch_loss = []
-        delta_T = 10
-        T_end = 100
-        alpha = 0.1 
-
         for epoch in range(args.epochs):
             # Calculate the decayed learning rate
             #current_lr = initial_lr * math.exp((epoch / args.epochs) * math.log(final_lr / initial_lr))
@@ -57,18 +53,16 @@ class MyModelTrainer(ModelTrainer):
             batch_loss = []
             for batch_idx, (x, labels) in enumerate(train_data):
                 x, labels = x.to(device), labels.to(device)
-                loss = sparse_train_step(model, optimizer,criterion, x, labels, mask_dict, t=epoch*len(train_data)+batch_idx, 
-                        delta_T=delta_T, T_end=T_end, alpha=alpha, layer_density_dict=layer_density_dict)
-                #model.zero_grad()
-                #log_probs = model(x)
-                #loss = criterion(log_probs, labels)
-                #loss.backward()
+                model.zero_grad()
+                log_probs = model(x)
+                loss = criterion(log_probs, labels)
+                loss.backward()
                 #self.model.apply_mask_gradients()  # apply pruning mask
-
+                
                 # Uncommet this following line to avoid nan loss
                 # torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
 
-                #optimizer.step()
+                optimizer.step()
                 # logging.info('Update Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 #     epoch, (batch_idx + 1) * args.batch_size, len(train_data) * args.batch_size,
                 #            100. * (batch_idx + 1) / len(train_data), loss.item()))
@@ -76,6 +70,7 @@ class MyModelTrainer(ModelTrainer):
             epoch_loss.append(sum(batch_loss) / len(batch_loss))
             logging.info('Client Index = {}\tEpoch: {}\tLoss: {:.6f}'.format(
                 self.id, epoch, sum(epoch_loss) / len(epoch_loss)))
+
 
     def test(self, test_data, device, args):
         model = self.model
@@ -109,28 +104,3 @@ class MyModelTrainer(ModelTrainer):
     def test_on_the_server(self, train_data_local_dict, test_data_local_dict, device, args=None) -> bool:
         return False
     
-def sparse_train_step(model, optimizer, criterion,data, target, mask_dict, t, delta_T, T_end, alpha, layer_density_dict): #rigL
-    #model.train()
-    model.zero_grad()
-    log_probs = model(data)
-    
-    loss = criterion(log_probs, target)
-    loss.backward()
-    if t % delta_T == 0 and t < T_end:
-        for name, param in model.named_parameters():
-            if name in mask_dict:
-                num_elements = mask_dict[name].numel()
-                k = f_decay(t, alpha, T_end) * (1 - layer_density_dict[name])
-                inactive_indices = (mask_dict[name].view(-1) == 0).nonzero(as_tuple=False).view(-1)
-                _, topk_indices = torch.topk(torch.abs(param.data.view(-1)[inactive_indices]), k, sorted=False)
-                mask_dict[name].view(-1)[inactive_indices[topk_indices]] = 1.0
-    # apply mask to gradients
-    for name, param in model.named_parameters():
-        if name in mask_dict:
-            param.grad.data *= mask_dict[name]
-    optimizer.step()
-    # Newly activated connections are initialized to zero
-    for name, param in model.named_parameters():
-        if name in mask_dict:
-            param.data *= mask_dict[name]
-    return loss

@@ -96,3 +96,28 @@ def growing(model, mask_dict, growth_percentage):
     return mask_dict
 
 
+# 
+def sparse_update_step(model, gradients, mask_dict, t,T_end, alpha, layer_density_dict):
+    for name, param in model.named_parameters():
+        if name in mask_dict:
+            #num_elements = mask_dict[name].numel()
+            k = f_decay(t, alpha, T_end) * (1 - layer_density_dict[name])
+
+            # pruning：Find the k  smallest connections among the current active connections and set them to non-active
+            active_indices = (mask_dict[name].view(-1) == 1).nonzero(as_tuple=False).view(-1)
+            if active_indices.numel() > k:
+                _, prune_indices = torch.topk(torch.abs(param.data.view(-1)[active_indices]), k, largest=False)
+                mask_dict[name].view(-1)[active_indices[prune_indices]] = 0
+
+            # growing：Find the k  largest gradients connections among the currently inactive connections and set them to active
+            inactive_indices = (mask_dict[name].view(-1) == 0).nonzero(as_tuple=False).view(-1)
+            if inactive_indices.numel() > k:
+                grad_inactive = gradients[name].abs().view(-1)[inactive_indices]
+                _, grow_indices = torch.topk(grad_inactive, k, sorted=False)
+                mask_dict[name].view(-1)[inactive_indices[grow_indices]] = 1
+    return mask_dict
+
+
+
+
+
