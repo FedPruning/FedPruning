@@ -177,7 +177,7 @@ if __name__ == "__main__":
     # Note if the model is DNN (e.g., ResNet), the training will be very slow.
     # In this case, please use our FedML distributed version (./fedml_experiments/distributed_fedavg)
     inner_model = create_model(args, model_name=args.model, output_dim=dataset[7])
-    model=SparseModel(inner_model, target_density=0.5, str="uniform_random")
+    model=SparseModel(inner_model, target_density=0.5, )
     model_trainer = custom_model_trainer(args, model)
     logging.info(model)
 
