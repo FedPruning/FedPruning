@@ -55,8 +55,8 @@ class FedDpAPI(object):
     def train(self):
         flag=0 #flag to check if the model should be pruned or not
         model=self.model_trainer.model
-        logging.info("mask_dict after initial pruning = " + model.mask_dict)
-        logging.info("layer_density_dict after initial pruning = " + model.layer_density_dict)
+        logging.info("mask_dict after initial pruning = " + str(model.mask_dict))
+        logging.info("layer_density_dict after initial pruning = " + str(model.layer_density_dict))
 
 
 
@@ -110,7 +110,7 @@ class FedDpAPI(object):
             #pruning and growing according to the weight and gradient
             if(flag==1):
                 mask_dict = sparse_update_step(model, gradient_global, mask_dict=model.mask_dict, T_end=100, alpha=0.1, round_idx=round_idx, layer_density_dict=model.layer_density_dict)
-                logging.info("mask_dict after pruning and growing = " +mask_dict)
+                logging.info("mask_dict after pruning and growing = " +str(mask_dict))
 
                 # apply mask to gradients
                 for name, param in self.model_trainer.model.named_parameters():
