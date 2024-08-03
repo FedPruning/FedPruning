@@ -88,12 +88,14 @@ class FedDpAPI(object):
                                             self.train_data_local_num_dict[client_idx])
 
                 # train on new dataset
-                w= client.train(w_global) 
+                if(flag==1):
+                    w,gradient = client.train(w_global,flag)
+                    gradient_locals.append((client.get_sample_number(), gradient))
+                else:
+                    w = client.train(w_global, flag)
+
                 w_locals.append((client.get_sample_number(), w))
 
-                if(flag==1):  
-                    gradient = client.get_gradients()
-                    gradient_locals.append(client.get_sample_number(), gradient)
 
 
             # update global weights
@@ -111,7 +113,7 @@ class FedDpAPI(object):
                 for name, param in self.model_trainer.model.named_parameters():
                     if name in mask_dict:
                         param.grad = gradient_global[name] * mask_dict[name]
-                        
+
                 # apply mask to weights
                 for name, param in model.named_parameters():
                     if name in mask_dict:

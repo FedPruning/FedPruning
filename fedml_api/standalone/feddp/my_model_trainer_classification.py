@@ -21,13 +21,11 @@ class MyModelTrainer(ModelTrainer):
     def set_model_params(self, model_parameters):
         self.model.load_state_dict(model_parameters, strict=False)
     
-    def get_model_gradients(self):
-        gradients = {name: param.grad for name, param in self.model.named_parameters()}
-        return  gradients
 
 
 
-    def train(self, train_data, device, args):
+
+    def train(self, train_data, device, args,flag):
         model = self.model
 
         model.to(device)
@@ -66,10 +64,17 @@ class MyModelTrainer(ModelTrainer):
                 # logging.info('Update Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 #     epoch, (batch_idx + 1) * args.batch_size, len(train_data) * args.batch_size,
                 #            100. * (batch_idx + 1) / len(train_data), loss.item()))
+                # Collect gradients
+                if flag==1:
+                   gradients = {name: param.grad.clone() for name, param in model.named_parameters() if param.requires_grad}
                 batch_loss.append(loss.item())
             epoch_loss.append(sum(batch_loss) / len(batch_loss))
             logging.info('Client Index = {}\tEpoch: {}\tLoss: {:.6f}'.format(
                 self.id, epoch, sum(epoch_loss) / len(epoch_loss)))
+            local_params = model.state_dict()
+            if flag==1:
+                return gradients
+
 
 
     def test(self, test_data, device, args):

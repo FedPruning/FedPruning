@@ -24,18 +24,24 @@ class Client:
     def get_sample_number(self):
         return self.local_sample_number
 
-    def train(self, w_global):
+    def train(self, w_global,flag):
         #self.model_trainer.set_model_params(w_global)
         #self.model_trainer.train(self.local_training_data, self.device, self.args)
         #weights = self.model_trainer.get_model_params()
         #return weights
         local_w_global = copy.deepcopy(w_global)
         self.model_trainer.set_model_params(local_w_global)
-        self.model_trainer.train(self.local_training_data, self.device, self.args)
-        weights = self.model_trainer.get_model_params()
+        if flag==1:
+            gradients = self.model_trainer.train(self.local_training_data, self.device, self.args,flag)
+            weights = self.model_trainer.get_model_params()
+            return weights,gradients
+        else:
+            self.model_trainer.train(self.local_training_data, self.device, self.args,flag)
+            weights = self.model_trainer.get_model_params()
+            return weights
 
         #logging.debug("Trained local weights: " + str(weights)) 
-        return weights
+        return weights,gradeints
     
     def get_gradients(self):
         return self.model_trainer.get_model_gradients()
