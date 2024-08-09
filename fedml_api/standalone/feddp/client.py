@@ -3,8 +3,7 @@ import copy
 
 class Client:
 
-    def __init__(self, client_idx, local_training_data, local_test_data, local_sample_number, args, device,
-                 model_trainer):
+    def __init__(self, client_idx, local_training_data, local_test_data, local_sample_number, args, device, model_trainer):
         self.client_idx = client_idx
         self.local_training_data = local_training_data
         self.local_test_data = local_test_data
@@ -31,10 +30,10 @@ class Client:
         #return weights
         local_w_global = copy.deepcopy(w_global)
         self.model_trainer.set_model_params(local_w_global)
-        if flag==1:
+        if flag == 1:
             gradients = self.model_trainer.train(self.local_training_data, self.device, self.args,flag)
             weights = self.model_trainer.get_model_params()
-            return weights,gradients
+            return weights , gradients
         else:
             self.model_trainer.train(self.local_training_data, self.device, self.args,flag)
             weights = self.model_trainer.get_model_params()

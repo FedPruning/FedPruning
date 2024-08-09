@@ -30,11 +30,6 @@ class FedDpAPI(object):
         self.model_trainer = model_trainer
         self._setup_clients(train_data_local_num_dict, train_data_local_dict, test_data_local_dict, model_trainer)
 
-     
-
-
-
-
     def _setup_clients(self, train_data_local_num_dict, train_data_local_dict, test_data_local_dict, model_trainer):
         logging.info("############setup_clients (START)#############")
         for client_idx in range(self.args.client_num_per_round):
@@ -44,21 +39,17 @@ class FedDpAPI(object):
             #sparse_model.to(self.device)
             #c = Client(client_idx, train_data_local_dict[client_idx], test_data_local_dict[client_idx],
             #           train_data_local_num_dict[client_idx], self.args, self.device, sparse_model)
-            c = Client(client_idx, train_data_local_dict[client_idx], test_data_local_dict[client_idx],
-                       train_data_local_num_dict[client_idx], self.args, self.device, model_trainer)
+            c = Client(client_idx, train_data_local_dict[client_idx], test_data_local_dict[client_idx], train_data_local_num_dict[client_idx], self.args, self.device, model_trainer)
 
-            
             self.client_list.append(c)
         logging.info("############setup_clients (END)#############")
 
  
     def train(self):
-        flag=0 #flag to check if the model should be pruned or not
-        model=self.model_trainer.model
+        flag = 0 # flag to check if the model should be pruned or not
+        model = self.model_trainer.model
         logging.info("mask_dict after initial pruning = " + str(model.mask_dict))
         logging.info("layer_density_dict after initial pruning = " + str(model.layer_density_dict))
-
-
 
         w_global = self.model_trainer.get_model_params()
 
@@ -66,8 +57,8 @@ class FedDpAPI(object):
 
             logging.info("################Communication round : {}".format(round_idx))
 
-            #if(round_idx%10==0):
-            flag=1 #if the round is multiple of 10, then we will prune the model in this round
+            if round_idx % 10 == 0 :
+                flag = 1 #if the round is multiple of 10, then we will prune the model in this round
 
             w_locals = []
             gradient_locals=[]
@@ -76,8 +67,7 @@ class FedDpAPI(object):
             for scalability: following the original FedAvg algorithm, we uniformly sample a fraction of clients in each round.
             Instead of changing the 'Client' instances, our implementation keeps the 'Client' instances and then updates their local dataset 
             """
-            client_indexes = self._client_sampling(round_idx, self.args.client_num_in_total,
-                                                   self.args.client_num_per_round)
+            client_indexes = self._client_sampling(round_idx, self.args.client_num_in_total,  self.args.client_num_per_round)
             logging.info("client_indexes = " + str(client_indexes))
            
 
@@ -85,30 +75,25 @@ class FedDpAPI(object):
             for idx, client in enumerate(self.client_list):
                 # update dataset
                 client_idx = client_indexes[idx]
-                client.update_local_dataset(client_idx, self.train_data_local_dict[client_idx],
-                                            self.test_data_local_dict[client_idx],
-                                            self.train_data_local_num_dict[client_idx])
+                client.update_local_dataset(client_idx, self.train_data_local_dict[client_idx], self.test_data_local_dict[client_idx], self.train_data_local_num_dict[client_idx])
 
                 # train on new dataset
-                if(flag==1):
-                    w,gradient = client.train(w_global,flag)
+                if flag == 1 :
+                    w, gradient = client.train(w_global, flag)
                     gradient_locals.append((client.get_sample_number(), gradient))
                 else:
                     w = client.train(w_global, flag)
 
                 w_locals.append((client.get_sample_number(), w))
 
-
-
             # update global weights
             w_global = self._aggregate(w_locals)
             self.model_trainer.set_model_params(w_global)
 
 
-            gradient_global = self._aggregate(gradient_locals)
-
             #pruning and growing according to the weight and gradient
-            if(flag==1):
+            if flag == 1 :
+                gradient_global = self._aggregate(gradient_locals)
                 mask_dict = sparse_update_step(model, gradient_global, mask_dict=model.mask_dict,t=round_idx, T_end=100, alpha=0.1, layer_density_dict=model.layer_density_dict)
                 logging.info("mask_dict after pruning and growing = " +str(mask_dict))
 
@@ -122,9 +107,6 @@ class FedDpAPI(object):
                     if name in mask_dict:
                         param.data *= mask_dict[name]
                 
-               
-
-
             # test results
             # at last round
             if round_idx == self.args.comm_round - 1:

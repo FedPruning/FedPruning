@@ -1,5 +1,6 @@
 import torch
 import random
+import numpy as np 
 
 def generate_layer_density_dict(num_elements_dict, num_overall_elements, sparse_layer_set, target_density, layer_density_strategy):
     # the maximum number of elements
@@ -70,7 +71,8 @@ def random_prune(mask, num_elements, density):
 
 
 def f_decay(t, alpha, T_end):
-    return int(alpha * (1 - t / T_end))
+    # return int(alpha * (1 - t / T_end))
+    return alpha / 2 * (1 + np.cos(t * np.pi / T_end))
 
 
 def growing(model, mask_dict, growth_percentage):
@@ -101,13 +103,23 @@ def sparse_update_step(model, gradients, mask_dict, t,T_end, alpha, layer_densit
     for name, param in model.named_parameters():
         if name in mask_dict:
             #num_elements = mask_dict[name].numel()
-            k = f_decay(t, alpha, T_end) * (1 - layer_density_dict[name])
-
+            # k = f_decay(t, alpha, T_end) * (1 - layer_density_dict[name])
+            
+            active_num = (mask_dict[name] == 1).int().sum().item()
+            k = f_decay(t, alpha, T_end) * active_num
             # pruning：Find the k  smallest connections among the current active connections and set them to non-active
             active_indices = (mask_dict[name].view(-1) == 1).nonzero(as_tuple=False).view(-1)
             if active_indices.numel() > k:
                 _, prune_indices = torch.topk(torch.abs(param.data.view(-1)[active_indices]), k, largest=False)
+                # here some problems 
+                # 1. the prune_indices is the indices for param.view(-1)[active_indices], not for active_indices
+                # 2. you should use mask_dict[name].data.view(-1) to change the mask_dict[name]
                 mask_dict[name].view(-1)[active_indices[prune_indices]] = 0
+                
+                # non_active_num =  param.numel() - active_num
+                # num_remove = non_active_num + k
+                # x, idx = torch.sort(torch.abs(param.data.view(-1)))
+                # mask_dict[name].data.view(-1)[idx[num_remove:]] = 0.0
 
             # growing：Find the k  largest gradients connections among the currently inactive connections and set them to active
             inactive_indices = (mask_dict[name].view(-1) == 0).nonzero(as_tuple=False).view(-1)

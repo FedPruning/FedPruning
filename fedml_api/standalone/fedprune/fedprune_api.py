@@ -51,16 +51,13 @@ class FedPruneAPI(object):
             for scalability: following the original FedAvg algorithm, we uniformly sample a fraction of clients in each round.
             Instead of changing the 'Client' instances, our implementation keeps the 'Client' instances and then updates their local dataset 
             """
-            client_indexes = self._client_sampling(round_idx, self.args.client_num_in_total,
-                                                   self.args.client_num_per_round)
+            client_indexes = self._client_sampling(round_idx, self.args.client_num_in_total, self.args.client_num_per_round)
             logging.info("client_indexes = " + str(client_indexes))
 
             for idx, client in enumerate(self.client_list):
                 # update dataset
                 client_idx = client_indexes[idx]
-                client.update_local_dataset(client_idx, self.train_data_local_dict[client_idx],
-                                            self.test_data_local_dict[client_idx],
-                                            self.train_data_local_num_dict[client_idx])
+                client.update_local_dataset(client_idx, self.train_data_local_dict[client_idx], self.test_data_local_dict[client_idx], self.train_data_local_num_dict[client_idx])
 
                 # train on new dataset
                 w = client.train(w_global)
