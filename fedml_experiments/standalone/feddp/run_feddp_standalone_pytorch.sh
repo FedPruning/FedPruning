@@ -49,5 +49,5 @@ python3 ./main_feddp.py \
 --lr $LR \
 --ci $CI \
 --target_density $DENSITY \
---delta_t $DELTA_T \
---t_end $T_END
+--delta_T $DELTA_T \
+--T_end $T_END
