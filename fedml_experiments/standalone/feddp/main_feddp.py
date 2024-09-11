@@ -75,6 +75,9 @@ def add_args(parser):
     
     parser.add_argument('--target_density', type=float, default=0.5,
                         help='pruning target density')
+    parser.add_argument('--delta_T', type=int, default=10,help='delta t for update')
+
+    parser.add_argument('--T_end',type=int,default=100,help='end of time for update')
     
     return parser
 

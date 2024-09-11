@@ -57,7 +57,7 @@ class FedDpAPI(object):
 
             logging.info("################Communication round : {}".format(round_idx))
 
-            if round_idx % 10 == 0 :
+            if round_idx % self.args.delta_T == 0 and round_idx < self.args.T_end :
                 flag = 1 #if the round is multiple of 10, then we will prune the model in this round
 
             w_locals = []
