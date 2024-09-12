@@ -161,7 +161,7 @@ if __name__ == "__main__":
 
     wandb.init(
         project="fedml",
-        name="Feddp-r" + str(args.comm_round) + "-e" + str(args.epochs) + "-lr" + str(args.lr),
+        name="Feddp-r" + str(args.comm_round) + "-e" + str(args.epochs) + "-lr" + str(args.lr)+ "-dp" + str(args.target_density) + "-delta" + str(args.delta_T) + "-T" + str(args.T_end),
         config=args
     )
 
