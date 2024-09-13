@@ -59,6 +59,8 @@ class FedDpAPI(object):
 
             if round_idx % self.args.delta_T == 0 and round_idx < self.args.T_end :
                 flag = 1 #if the round is multiple of 10, then we will prune the model in this round
+            else:
+                flag =0
 
             w_locals = []
             gradient_locals=[]
