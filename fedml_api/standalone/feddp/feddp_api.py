@@ -94,7 +94,7 @@ class FedDpAPI(object):
             #pruning and growing according to the weight and gradient
             if flag == 1 :
                 gradient_global = self._aggregate(gradient_locals)
-                mask_dict = sparse_update_step(model, gradient_global, model.mask_dict, t=round_idx, T_end=self.args.T_end, alpha=self.args.alpha, layer_density_dict=model.layer_density_dict)
+                mask_dict = sparse_update_step(model, gradient_global, model.mask_dict, t=round_idx, T_end=self.args.T_end, alpha=self.args.lr, layer_density_dict=model.layer_density_dict)
                 #logging.info("mask_dict after pruning and growing = " +str(mask_dict))
 
                 # apply mask to gradients
