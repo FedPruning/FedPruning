@@ -28,6 +28,12 @@ CI=${13}
 
 DENSITY=${14}
 
+DELTA_T=${15}
+
+T_END=${16}
+
+
+
 python3 ./main_feddp.py \
 --gpu $GPU \
 --dataset $DATASET \
@@ -42,4 +48,6 @@ python3 ./main_feddp.py \
 --client_optimizer $OPT \
 --lr $LR \
 --ci $CI \
---target_density $DENSITY
+--target_density $DENSITY \
+--delta_T $DELTA_T \
+--T_end $T_END
