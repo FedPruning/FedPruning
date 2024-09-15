@@ -38,7 +38,7 @@ class FedAvgAPI(object):
             #sparse_model.to(self.device)
             #c = Client(client_idx, train_data_local_dict[client_idx], test_data_local_dict[client_idx],
             #           train_data_local_num_dict[client_idx], self.args, self.device, sparse_model)
-            c = Client(client_idx, train_data_local_dict[client_idx], test_data_local_dict[client_idx],
+            c = Client(client_idx, train_data_local_dict[client_idx], None,
                        train_data_local_num_dict[client_idx], self.args, self.device, model_trainer)
 
             
@@ -65,7 +65,7 @@ class FedAvgAPI(object):
                 # update dataset
                 client_idx = client_indexes[idx]
                 client.update_local_dataset(client_idx, self.train_data_local_dict[client_idx],
-                                            self.test_data_local_dict[client_idx],
+                                            None,
                                             self.train_data_local_num_dict[client_idx])
 
                 # train on new dataset
@@ -140,69 +140,85 @@ class FedAvgAPI(object):
         return averaged_params
     
     def _local_test_on_all_clients(self, round_idx):
-
-        logging.info("################local_test_on_all_clients : {}".format(round_idx))
-
-        train_metrics = {
-            'num_samples': [],
-            'num_correct': [],
-            'losses': []
-        }
-
-        test_metrics = {
-            'num_samples': [],
-            'num_correct': [],
-            'losses': []
-        }
+        logging.info("################_local_test_on_all_clients : {}".format(round_idx))
 
         client = self.client_list[0]
+        client.update_local_dataset(0, None, self.test_global, None)
+        # test data
+        test_metrics = client.local_test(True)
+        acc =  test_metrics["test_correct"] / test_metrics["test_total"] 
+        loss = test_metrics["test_loss"] / test_metrics["test_total"] 
+        info = {
+            "Test/Acc" : acc, 
+            "Test/Loss" : loss 
+        }
+        wandb.log(info)
+        logging.info(info)
 
-        for client_idx in range(self.args.client_num_in_total):
-            """
-            Note: for datasets like "fed_CIFAR100" and "fed_shakespheare",
-            the training client number is larger than the testing client number
-            """
-            if self.test_data_local_dict[client_idx] is None:
-                continue
-            client.update_local_dataset(0, self.train_data_local_dict[client_idx],
-                                        self.test_data_local_dict[client_idx],
-                                        self.train_data_local_num_dict[client_idx])
-            # train data
-            train_local_metrics = client.local_test(False)
-            train_metrics['num_samples'].append(copy.deepcopy(train_local_metrics['test_total']))
-            train_metrics['num_correct'].append(copy.deepcopy(train_local_metrics['test_correct']))
-            train_metrics['losses'].append(copy.deepcopy(train_local_metrics['test_loss']))
+    # def _local_test_on_all_clients(self, round_idx):
 
-            # test data
-            test_local_metrics = client.local_test(True)
-            test_metrics['num_samples'].append(copy.deepcopy(test_local_metrics['test_total']))
-            test_metrics['num_correct'].append(copy.deepcopy(test_local_metrics['test_correct']))
-            test_metrics['losses'].append(copy.deepcopy(test_local_metrics['test_loss']))
+    #     logging.info("################local_test_on_all_clients : {}".format(round_idx))
 
-            """
-            Note: CI environment is CPU-based computing. 
-            The training speed for RNN training is to slow in this setting, so we only test a client to make sure there is no programming error.
-            """
-            if self.args.ci == 1:
-                break
+    #     train_metrics = {
+    #         'num_samples': [],
+    #         'num_correct': [],
+    #         'losses': []
+    #     }
 
-        # test on training dataset
-        train_acc = sum(train_metrics['num_correct']) / sum(train_metrics['num_samples'])
-        train_loss = sum(train_metrics['losses']) / sum(train_metrics['num_samples'])
+    #     test_metrics = {
+    #         'num_samples': [],
+    #         'num_correct': [],
+    #         'losses': []
+    #     }
 
-        # test on test dataset
-        test_acc = sum(test_metrics['num_correct']) / sum(test_metrics['num_samples'])
-        test_loss = sum(test_metrics['losses']) / sum(test_metrics['num_samples'])
+    #     client = self.client_list[0]
 
-        stats = {'training_acc': train_acc, 'training_loss': train_loss}
-        wandb.log({"Train/Acc": train_acc, "round": round_idx})
-        wandb.log({"Train/Loss": train_loss, "round": round_idx})
-        logging.info(stats)
+    #     for client_idx in range(self.args.client_num_in_total):
+    #         """
+    #         Note: for datasets like "fed_CIFAR100" and "fed_shakespheare",
+    #         the training client number is larger than the testing client number
+    #         """
+    #         if self.test_data_local_dict[client_idx] is None:
+    #             continue
+    #         client.update_local_dataset(0, self.train_data_local_dict[client_idx],
+    #                                     self.test_data_local_dict[client_idx],
+    #                                     self.train_data_local_num_dict[client_idx])
+    #         # train data
+    #         train_local_metrics = client.local_test(False)
+    #         train_metrics['num_samples'].append(copy.deepcopy(train_local_metrics['test_total']))
+    #         train_metrics['num_correct'].append(copy.deepcopy(train_local_metrics['test_correct']))
+    #         train_metrics['losses'].append(copy.deepcopy(train_local_metrics['test_loss']))
 
-        stats = {'test_acc': test_acc, 'test_loss': test_loss}
-        wandb.log({"Test/Acc": test_acc, "round": round_idx})
-        wandb.log({"Test/Loss": test_loss, "round": round_idx})
-        logging.info(stats)
+    #         # test data
+    #         test_local_metrics = client.local_test(True)
+    #         test_metrics['num_samples'].append(copy.deepcopy(test_local_metrics['test_total']))
+    #         test_metrics['num_correct'].append(copy.deepcopy(test_local_metrics['test_correct']))
+    #         test_metrics['losses'].append(copy.deepcopy(test_local_metrics['test_loss']))
+
+    #         """
+    #         Note: CI environment is CPU-based computing. 
+    #         The training speed for RNN training is to slow in this setting, so we only test a client to make sure there is no programming error.
+    #         """
+    #         if self.args.ci == 1:
+    #             break
+
+    #     # test on training dataset
+    #     train_acc = sum(train_metrics['num_correct']) / sum(train_metrics['num_samples'])
+    #     train_loss = sum(train_metrics['losses']) / sum(train_metrics['num_samples'])
+
+    #     # test on test dataset
+    #     test_acc = sum(test_metrics['num_correct']) / sum(test_metrics['num_samples'])
+    #     test_loss = sum(test_metrics['losses']) / sum(test_metrics['num_samples'])
+
+    #     stats = {'training_acc': train_acc, 'training_loss': train_loss}
+    #     wandb.log({"Train/Acc": train_acc, "round": round_idx})
+    #     wandb.log({"Train/Loss": train_loss, "round": round_idx})
+    #     logging.info(stats)
+
+    #     stats = {'test_acc': test_acc, 'test_loss': test_loss}
+    #     wandb.log({"Test/Acc": test_acc, "round": round_idx})
+    #     wandb.log({"Test/Loss": test_loss, "round": round_idx})
+    #     logging.info(stats)
 
     def _local_test_on_validation_set(self, round_idx):
 

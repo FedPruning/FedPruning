@@ -9,4 +9,3 @@
 
 mapping_default:
     four_gpu: [2, 3, 3, 3]
-

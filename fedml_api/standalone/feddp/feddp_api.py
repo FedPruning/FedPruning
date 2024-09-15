@@ -96,7 +96,7 @@ class FedDpAPI(object):
                 gradient_global = self._aggregate(gradient_locals)
                 mask_dict = sparse_update_step(model, gradient_global, mask_dict=model.mask_dict,t=round_idx, T_end=100, alpha=0.1, layer_density_dict=model.layer_density_dict)
                 logging.info("mask_dict after pruning and growing = " +str(mask_dict))
-
+                
                 # apply mask to gradients
                 for name, param in self.model_trainer.model.named_parameters():
                     if name in mask_dict:

@@ -106,27 +106,20 @@ def sparse_update_step(model, gradients, mask_dict, t,T_end, alpha, layer_densit
             # k = f_decay(t, alpha, T_end) * (1 - layer_density_dict[name])
             
             active_num = (mask_dict[name] == 1).int().sum().item()
-            k = f_decay(t, alpha, T_end) * active_num
+            k = int(f_decay(t, alpha, T_end) * active_num)
             # pruning：Find the k  smallest connections among the current active connections and set them to non-active
             active_indices = (mask_dict[name].view(-1) == 1).nonzero(as_tuple=False).view(-1)
-            if active_indices.numel() > k:
-                _, prune_indices = torch.topk(torch.abs(param.data.view(-1)[active_indices]), k, largest=False)
-                # here some problems 
-                # 1. the prune_indices is the indices for param.view(-1)[active_indices], not for active_indices
-                # 2. you should use mask_dict[name].data.view(-1) to change the mask_dict[name]
-                mask_dict[name].view(-1)[active_indices[prune_indices]] = 0
-                
-                # non_active_num =  param.numel() - active_num
-                # num_remove = non_active_num + k
-                # x, idx = torch.sort(torch.abs(param.data.view(-1)))
-                # mask_dict[name].data.view(-1)[idx[num_remove:]] = 0.0
+            _, prune_indices = torch.topk(torch.abs(param.data.view(-1)[active_indices]), k, largest=False)
+            
+            mask_dict[name].view(-1)[active_indices[prune_indices]] = 0
+            
 
             # growing：Find the k  largest gradients connections among the currently inactive connections and set them to active
             inactive_indices = (mask_dict[name].view(-1) == 0).nonzero(as_tuple=False).view(-1)
-            if inactive_indices.numel() > k:
-                grad_inactive = gradients[name].abs().view(-1)[inactive_indices]
-                _, grow_indices = torch.topk(grad_inactive, k, sorted=False)
-                mask_dict[name].view(-1)[inactive_indices[grow_indices]] = 1
+            
+            grad_inactive = gradients[name].abs().view(-1)[inactive_indices]
+            _, grow_indices = torch.topk(grad_inactive, k, sorted=False)
+            mask_dict[name].view(-1)[inactive_indices[grow_indices]] = 1
     return mask_dict
 
 

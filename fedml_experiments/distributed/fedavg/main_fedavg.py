@@ -63,6 +63,10 @@ def add_args(parser):
         "--batch_size", type=int, default=64, metavar="N", help="input batch size for training (default: 64)"
     )
 
+    parser.add_argument(
+        "--num_eval", type=int, default=128, help="the number of the data samples used for eval, -1 is the total testing dataset."
+    )
+
     parser.add_argument("--client_optimizer", type=str, default="adam", help="SGD with momentum; adam")
 
     parser.add_argument("--backend", type=str, default="MPI", help="Backend for Server and Client")
@@ -153,7 +157,7 @@ def create_model(args, model_name, output_dim):
     if model_name == "resnet18":
         model = resnet18(num_classes=output_dim)
     if model_name == "resnet56":
-        model = resnet56(num_classes=output_dim)
+        model = resnet56(class_num=output_dim)
     return model
 
 if __name__ == "__main__":
@@ -196,10 +200,12 @@ if __name__ == "__main__":
     # initialize the wandb machine learning experimental tracking platform (https://www.wandb.com/).
     if process_id == 0:
         wandb.init(
-            project="fedml",
-            name="FedAVG(d)"
-            + str(args.partition_method)
-            + "r"
+            project="fedprune",
+            name="FedAVG_"
+            + args.dataset 
+            + "_"
+            + args.model 
+            + "-r"
             + str(args.comm_round)
             + "-e"
             + str(args.epochs)
@@ -224,14 +230,15 @@ if __name__ == "__main__":
 
     # load data
     dataset = load_data(args, args.dataset)
+
     [
         train_data_num,
         test_data_num,
-        train_data_global,
+        train_data_global, # None here 
         test_data_global,
         train_data_local_num_dict,
-        train_data_local_dict,
-        test_data_local_dict,
+        train_data_local_dict, 
+        test_data_local_dict,  # None here 
         class_num,
     ] = dataset
 
@@ -248,10 +255,10 @@ if __name__ == "__main__":
         comm,
         model,
         train_data_num,
-        train_data_global,
+        train_data_global, # None 
         test_data_global,
         train_data_local_num_dict,
-        train_data_local_dict,
-        test_data_local_dict,
+        train_data_local_dict, 
+        test_data_local_dict, # None 
         args,
     )

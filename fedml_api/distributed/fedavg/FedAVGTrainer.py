@@ -26,7 +26,7 @@ class FedAVGTrainer(object):
         self.client_index = client_index
         self.train_local = self.train_data_local_dict[client_index]
         self.local_sample_number = self.train_data_local_num_dict[client_index]
-        self.test_local = self.test_data_local_dict[client_index]
+        # self.test_local = self.test_data_local_dict[client_index] # useless 
 
     def train(self, round_idx = None):
         self.args.round_idx = round_idx

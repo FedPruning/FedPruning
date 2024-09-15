@@ -6,7 +6,7 @@ import math
 try:
     from fedml_core.trainer.model_trainer import ModelTrainer
 except ImportError:
-    from FedML.fedml_core.trainer.model_trainer import ModelTrainer
+    from FedPrune.fedml_core.trainer.model_trainer import ModelTrainer
 
 
 class MyModelTrainer(ModelTrainer):  
@@ -32,13 +32,12 @@ class MyModelTrainer(ModelTrainer):
         initial_lr = args.initial_lr
         final_lr = args.final_lr
 
-
         epoch_loss = []
         for epoch in range(args.epochs):
             # Calculate the decayed learning rate
-            current_lr = initial_lr * math.exp((epoch / args.epochs) * math.log(final_lr / initial_lr))
-            for param_group in optimizer.param_groups:
-                param_group['lr'] = current_lr
+            # current_lr = initial_lr * math.exp((epoch / args.epochs) * math.log(final_lr / initial_lr))
+            # for param_group in optimizer.param_groups:
+            #     param_group['lr'] = current_lr
             batch_loss = []
             for batch_idx, (x, labels) in enumerate(train_data):
                 x, labels = x.to(device), labels.to(device)
@@ -55,14 +54,13 @@ class MyModelTrainer(ModelTrainer):
                 # logging.info('Update Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 #     epoch, (batch_idx + 1) * args.batch_size, len(train_data) * args.batch_size,
                 #            100. * (batch_idx + 1) / len(train_data), loss.item()))
-                batch_loss.append(loss.item())
-            epoch_loss.append(sum(batch_loss) / len(batch_loss))
-            logging.info('Client Index = {}\tEpoch: {}\tLoss: {:.6f}'.format(
-                self.id, epoch, sum(epoch_loss) / len(epoch_loss)))
+            #     batch_loss.append(loss.item())
+            # epoch_loss.append(sum(batch_loss) / len(batch_loss))
+            # logging.info('Client Index = {}\tEpoch: {}\tLoss: {:.6f}'.format(
+            #     self.id, epoch, sum(epoch_loss) / len(epoch_loss)))
 
     def test(self, test_data, device, args):
         model = self.model
-
         model.to(device)
         model.eval()
 
@@ -80,7 +78,6 @@ class MyModelTrainer(ModelTrainer):
                 target = target.to(device)
                 pred = model(x)
                 loss = criterion(pred, target)
-
                 _, predicted = torch.max(pred, -1)
                 correct = predicted.eq(target).sum()
 

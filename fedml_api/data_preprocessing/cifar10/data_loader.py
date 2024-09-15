@@ -265,6 +265,8 @@ def load_partition_data_cifar10(dataset, data_dir, partition_method, partition_a
         logging.info("client_idx = %d, batch_num_train_local = %d, batch_num_test_local = %d" % (
             client_idx, len(train_data_local), len(test_data_local)))
         train_data_local_dict[client_idx] = train_data_local
-        test_data_local_dict[client_idx] = test_data_local
-    return train_data_num, test_data_num, train_data_global, test_data_global, \
-           data_local_num_dict, train_data_local_dict, test_data_local_dict, class_num
+        # The test_data_local_dict and train_data_global is useless, so I remove it to save the memory
+        # test_data_local_dict[client_idx] = test_data_local
+    
+    return train_data_num, test_data_num, None, test_data_global, \
+           data_local_num_dict, train_data_local_dict, None, class_num
