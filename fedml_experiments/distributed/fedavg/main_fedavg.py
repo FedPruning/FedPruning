@@ -158,6 +158,8 @@ def create_model(args, model_name, output_dim):
         model = resnet18(num_classes=output_dim)
     if model_name == "resnet56":
         model = resnet56(class_num=output_dim)
+    if model_name == "mobilenet":
+        model = mobilenet(class_num=output_dim)
     return model
 
 if __name__ == "__main__":
