@@ -22,7 +22,7 @@ echo $PROCESS_NUM
 
 hostname > mpi_host_file
 
-mpirun -np $PROCESS_NUM -hostfile ./mpi_host_file python3 ./main_fedprunefl.py \
+mpirun -np $PROCESS_NUM -hostfile ./mpi_host_file python3 ./main_prunefl.py \
   --gpu_mapping_file "gpu_mapping.yaml" \
   --gpu_mapping_key "mapping_default" \
   --model $MODEL \
