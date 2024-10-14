@@ -1,0 +1,1 @@
+CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_fedavg_distributed_pytorch.sh 100 10 resnet18 hetero 500 5 64 0.0001 cifar10 ./../../../data/cifar10 adam 0
