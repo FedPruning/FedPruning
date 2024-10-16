@@ -28,7 +28,7 @@ CI=${13}
 
 DENSITY=${14}
 
-python3 ./main_fedprune.py \
+python3 ./main_fedinitprune.py \
 --gpu $GPU \
 --dataset $DATASET \
 --data_dir $DATA_PATH \
