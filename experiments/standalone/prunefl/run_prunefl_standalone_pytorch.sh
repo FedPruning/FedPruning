@@ -34,7 +34,7 @@ T_END=${16}
 
 
 
-python3 ./main_feddp.py \
+python3 ./main_prunefl.py \
 --gpu $GPU \
 --dataset $DATASET \
 --data_dir $DATA_PATH \
