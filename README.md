@@ -1,4 +1,4 @@
-# FedPrune: A Library and Benchmark for Efficient Federated Pruning.
+# FedPruning: A Library and Benchmark for Efficient Federated Pruning.
 
 Federated Learning enables multiple clients to collaboratively train a deep learning model without sharing data, though it often suffers from resource constraints on local devices. Neural network pruning facilitates on-device training by removing redundant parameters from dense networks, significantly reducing computational and storage costs. Recent state-of-the-art Federated Pruning techniques have achieved performance comparable to full-sized models
 
