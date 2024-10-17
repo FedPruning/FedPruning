@@ -28,6 +28,7 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_fedavg_distributed_pytorch.sh 100 10 resnet1
 
 ```
 reference experimental result: https://wandb.ai/zhyu9/fedprune/runs/m6m5l1kp?nw=nwuserzhihaoyu6
+Testing Accuracy:0.718
 
 
 
@@ -38,6 +39,7 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_fedavg_distributed_pytorch.sh 100 10 resnet1
 
 ```
 reference experimental result: https://wandb.ai/zhyu9/fedprune/runs/dz7ublqn?nw=nwuserzhihaoyu6
+Testing Accuracy:0.445
 
 
 #### CINIC10
@@ -47,6 +49,7 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_fedavg_distributed_pytorch.sh 100 10 resnet1
 
 ```
 reference experimental result: https://wandb.ai/zhyu9/fedprune/runs/swds9tfd?nw=nwuserzhihaoyu6
+Testing Accuracy:0.601
 
 
 ## ResNet56 Federated Training
@@ -58,6 +61,7 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_fedavg_distributed_pytorch.sh 100 10 resnet5
 
 ```
 reference experimental result: https://wandb.ai/zhyu9/fedprune/runs/p55t75wd?nw=nwuserzhihaoyu6
+Testing Accuracy: 0.804
 
 
 
@@ -69,6 +73,7 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_fedavg_distributed_pytorch.sh 100 10 resnet5
 
 ```
 reference experimental result: https://wandb.ai/zhyu9/fedprune/runs/6zq0d35p?nw=nwuserzhihaoyu6
+Testing Accuracy: 0.539
 
 
 #### CINIC10
@@ -78,6 +83,7 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_fedavg_distributed_pytorch.sh 100 10 resnet5
 
 ```
 reference experimental result: https://wandb.ai/zhyu9/fedprune/runs/16jfqepj?nw=nwuserzhihaoyu6
+Testing Accuracy: 0.664
 
 
 
@@ -92,6 +98,7 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_fedavg_distributed_pytorch.sh 100 10 mobilen
 
 ```
 reference experimental result: https://wandb.ai/zhyu9/fedprune/runs/z04old5k?nw=nwuserzhihaoyu6
+Testing Accuracy: 0.898
 
 
 
@@ -102,6 +109,7 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_fedavg_distributed_pytorch.sh 100 10 mobilen
 
 ```
 reference experimental result: https://wandb.ai/zhyu9/fedprune/runs/yznynjub?nw=nwuserzhihaoyu6
+Testing Accuracy: 0.445
 
 #### CINIC10
 
@@ -110,3 +118,4 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_fedavg_distributed_pytorch.sh 100 10 mobilen
 
 ```
 reference experimental result: https://wandb.ai/zhyu9/fedprune/runs/tmpg7f1a?nw=nwuserzhihaoyu6
+Testing Accuracy: 0.664
