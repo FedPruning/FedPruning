@@ -1,7 +1,7 @@
 import torch
 from typing import Dict, List
 from torch import nn
-from api.pruning.init_scheme import generate_layer_density_dict, pruning
+from api.pruning.init_scheme import generate_layer_density_dict, pruning, sparse_update_step
 import warnings
 
 
@@ -151,6 +151,11 @@ class SparseModel(nn.Module):
         actual_density = num_remain_elements/ self.num_overall_elements
 
         return actual_density, actual_layer_wise_density
+    
+    def adjust_mask_dict(self, gradients, t, T_end, alpha):
+        self.mask_dict = sparse_update_step(self.model, gradients, self.mask_dict, t, T_end, alpha)
+        self.apply_mask()
+
 
 ## TODO
 # actual density
