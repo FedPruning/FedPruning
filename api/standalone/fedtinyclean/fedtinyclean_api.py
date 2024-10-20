@@ -98,11 +98,12 @@ class FedTinyCleanAPI(object):
                 #logging.info("mask_dict after pruning and growing = " +str(mask_dict))
                 self.model_trainer.model.to(self.device)
                 self.model_trainer.model.apply_mask()
-                
-            if round_idx >= (self.args.comm_round - 1 - self.args.frequency_of_the_test * 5) or self.args.num_eval == -1 :
-                self.test_on_server_for_all_clients(round_idx, self.test_global)
-            else:
-                self.test_on_server_for_all_clients(round_idx, self.val_global)
+            
+            if round_idx % self.args.frequency_of_the_test  == 0:
+                if round_idx >= (self.args.comm_round - 1 - self.args.frequency_of_the_test * 5):
+                    self.test_on_server_for_all_clients(round_idx, self.test_global)
+                else:
+                    self.test_on_server_for_all_clients(round_idx, self.val_global)
            
 
     def _client_sampling(self, round_idx, client_num_in_total, client_num_per_round):
