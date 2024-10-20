@@ -202,7 +202,7 @@ if __name__ == "__main__":
     # initialize the wandb machine learning experimental tracking platform (https://www.wandb.com/).
     if process_id == 0:
         wandb.init(
-            project="fedprune",
+            project="fedpruning",
             name="FedAVG_"
             + args.dataset 
             + "_"
@@ -257,10 +257,10 @@ if __name__ == "__main__":
         comm,
         model,
         train_data_num,
-        train_data_global, # None 
+        None, #  # We do net need train_data_global, so we set it as None 
         test_data_global,
         train_data_local_num_dict,
         train_data_local_dict, 
-        test_data_local_dict, # None 
+        None, #  # We do net need train_data_global, so we set it as None 
         args,
     )
