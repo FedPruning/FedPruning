@@ -56,7 +56,7 @@ def add_args(parser):
                         help='how many round of communications we shoud use')
 
     parser.add_argument('--frequency_of_the_test', type=int, default=5,
-                        help='the frequency of the algorithms')
+                        help='the frequency of the testing')
 
     parser.add_argument('--target_density', type=float, default=0.5,
                         help='pruning target density')
