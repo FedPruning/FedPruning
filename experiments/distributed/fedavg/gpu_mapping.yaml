@@ -8,4 +8,4 @@
 
 
 mapping_default:
-    four_gpu: [3, 3, 3, 3]
+    four_gpu: [3, 3, 3, 2]

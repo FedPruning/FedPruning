@@ -1,7 +1,7 @@
 from .utils import transform_tensor_to_list
 
 
-class PruneflTrainer(object):
+class DisPFLTrainer(object):
 
     def __init__(self, client_index, train_data_local_dict, train_data_local_num_dict, test_data_local_dict,
                  train_data_num, device, args, model_trainer):
@@ -28,18 +28,8 @@ class PruneflTrainer(object):
         self.local_sample_number = self.train_data_local_num_dict[client_index]
         # self.test_local = self.test_data_local_dict[client_index] # useless 
 
-    def train(self, round_idx = None):
-        self.args.round_idx = round_idx
-        if round_idx % self.args.delta_T == 0 and round_idx < self.args.T_end:
-            flag = 1  # if the round is multiple of 10, then we will prune the model in this round
-        else:
-            flag = 0
-
-        gradients = None
-        if flag == 1:
-            gradients = self.trainer.train(self.train_local, self.device, self.args, flag)
-        else:
-            self.trainer.train(self.train_local, self.device, self.args, flag)
+    def train(self, mode, round_idx = None):
+        gradients = self.trainer.train(self.train_local, self.device, self.args, mode, round_idx)
         weights = self.trainer.get_model_params()
 
         # transform Tensor to list
@@ -48,15 +38,15 @@ class PruneflTrainer(object):
 
         return weights, gradients, self.local_sample_number
 
-    def test(self):
-        # train data
-        train_metrics = self.trainer.test(self.train_local, self.device, self.args)
-        train_tot_correct, train_num_sample, train_loss = train_metrics['test_correct'], \
-                                                          train_metrics['test_total'], train_metrics['test_loss']
+    # def test(self):
+    #     # train data
+    #     train_metrics = self.trainer.test(self.train_local, self.device, self.args)
+    #     train_tot_correct, train_num_sample, train_loss = train_metrics['test_correct'], \
+    #                                                       train_metrics['test_total'], train_metrics['test_loss']
 
-        # test data
-        test_metrics = self.trainer.test(self.test_local, self.device, self.args)
-        test_tot_correct, test_num_sample, test_loss = test_metrics['test_correct'], \
-                                                          test_metrics['test_total'], test_metrics['test_loss']
+    #     # test data
+    #     test_metrics = self.trainer.test(self.test_local, self.device, self.args)
+    #     test_tot_correct, test_num_sample, test_loss = test_metrics['test_correct'], \
+    #                                                       test_metrics['test_total'], test_metrics['test_loss']
 
-        return train_tot_correct, train_loss, train_num_sample, test_tot_correct, test_loss, test_num_sample
+    #     return train_tot_correct, train_loss, train_num_sample, test_tot_correct, test_loss, test_num_sample

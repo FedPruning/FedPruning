@@ -26,7 +26,7 @@ from api.model.cv.resnet_gn import resnet18
 from api.model.cv.mobilenet import mobilenet
 from api.model.cv.resnet import resnet56
 
-from api.distributed.prunefl.PruneflAPI import FedML_init, FedML_Prunefl_distributed
+from api.distributed.dispfl.DisPFLAPI import FedML_init, FedML_DisPFL_distributed
 from api.pruning.model_pruning import SparseModel
 
 
@@ -39,16 +39,6 @@ def add_args(parser):
     parser.add_argument("--model", type=str, default="resnet56", metavar="N", help="neural network used in training")
 
     parser.add_argument("--dataset", type=str, default="cifar10", metavar="N", help="dataset used for training")
-
-    parser.add_argument("--data_dir", type=str, default="./../../../data/cifar10", help="data directory")
-
-    parser.add_argument(
-        "--partition_method",
-        type=str,
-        default="hetero",
-        metavar="N",
-        help="how to partition the dataset on local workers",
-    )
 
     parser.add_argument(
         "--partition_alpha", type=float, default=0.5, metavar="PA", help="partition alpha (default: 0.5)"
@@ -67,43 +57,14 @@ def add_args(parser):
     parser.add_argument(
         "--num_eval", type=int, default=128, help="the number of the data samples used for eval, -1 is the total testing dataset."
     )
-
-    parser.add_argument("--client_optimizer", type=str, default="adam", help="SGD with momentum; adam")
-
-    parser.add_argument("--backend", type=str, default="MPI", help="Backend for Server and Client")
-
     parser.add_argument('--lr', type=float, default=0.001, metavar='LR',
                         help='learning rate (default: 0.001)')
-
-    parser.add_argument("--wd", help="weight decay parameter;", type=float, default=0.001)
 
     parser.add_argument("--epochs", type=int, default=5, metavar="EP", help="how many epochs will be trained locally")
 
     parser.add_argument("--comm_round", type=int, default=10, help="how many round of communications we shoud use")
 
-    parser.add_argument(
-        "--is_mobile", type=int, default=1, help="whether the program is running on the FedML-Mobile server side"
-    )
-
     parser.add_argument("--frequency_of_the_test", type=int, default=5, help="the frequency of the algorithms")
-
-    parser.add_argument("--gpu_server_num", type=int, default=1, help="gpu_server_num")
-
-    parser.add_argument("--gpu_num_per_server", type=int, default=4, help="gpu_num_per_server")
-
-    parser.add_argument(
-        "--gpu_mapping_file",
-        type=str,
-        default="gpu_mapping.yaml",
-        help="the gpu utilization file for servers and clients. If there is no \
-                        gpu_util_file, gpu will not be used.",
-    )
-
-    parser.add_argument(
-        "--gpu_mapping_key", type=str, default="mapping_default", help="the key in gpu utilization file"
-    )
-
-    parser.add_argument("--ci", type=int, default=0, help="CI")
 
     parser.add_argument('--target_density', type=float, default=0.5,
                         help='pruning target density')
@@ -112,11 +73,54 @@ def add_args(parser):
 
     parser.add_argument('--T_end', type=int, default=100, help='end of time for update')
 
+    parser.add_argument("--adjust_alpha", type=float, default=0.2, help='the ratio of num elements for adjustments')
+
+    # Following arguments are seldom changed
+    parser.add_argument(
+        "--gpu_mapping_key", type=str, default="mapping_default", help="the key in gpu utilization file"
+    )
+    parser.add_argument("--ci", type=int, default=0, help="CI")
+
+    parser.add_argument(
+            "--gpu_mapping_file",
+            type=str,
+            default="gpu_mapping.yaml",
+            help="the gpu utilization file for servers and clients. If there is no \
+                            gpu_util_file, gpu will not be used.",
+        )
+
+    parser.add_argument("--gpu_server_num", type=int, default=1, help="gpu_server_num")
+
+    parser.add_argument("--gpu_num_per_server", type=int, default=4, help="gpu_num_per_server")
+
+    parser.add_argument(
+        "--is_mobile", type=int, default=1, help="whether the program is running on the FedML-Mobile server side"
+    )
+
+    parser.add_argument("--backend", type=str, default="MPI", help="Backend for Server and Client")
+
+    parser.add_argument("--wd", help="weight decay parameter;", type=float, default=0.001)
+
+    parser.add_argument(
+        "--partition_method",
+        type=str,
+        default="hetero",
+        metavar="N",
+        help="how to partition the dataset on local workers",
+    )
+
+    parser.add_argument("--data_dir", type=str, default=None, help="data directory")
+
+    parser.add_argument("--client_optimizer", type=str, default="sgd", help="SGD with momentum; adam")
+
     args = parser.parse_args()
     return args
 
 
 def load_data(args, dataset_name):
+
+    if args.data_dir is None:
+        args.data_dir = f"./../../../data/{dataset_name}"
 
     if dataset_name == "cifar10":
         data_loader = load_partition_data_cifar10
@@ -162,8 +166,10 @@ def create_model(args, model_name, output_dim):
     model = None
     if model_name == "resnet18":
         model = resnet18(num_classes=output_dim)
-    if model_name == "resnet56":
+    elif model_name == "resnet56":
         model = resnet56(class_num=output_dim)
+    elif model_name == "mobilenet":
+        model = mobilenet(class_num=output_dim)
     return model
 
 if __name__ == "__main__":
@@ -180,7 +186,7 @@ if __name__ == "__main__":
     logging.info(args)
 
     # customize the process name
-    str_process_name = "Prunefl (distributed):" + str(process_id)
+    str_process_name = "DisFL (distributed):" + str(process_id)
     setproctitle.setproctitle(str_process_name)
 
     # customize the log format
@@ -206,23 +212,12 @@ if __name__ == "__main__":
     # initialize the wandb machine learning experimental tracking platform (https://www.wandb.com/).
     if process_id == 0:
         wandb.init(
-            project="fedprune",
-            name="Prunefl_"
+            project="FedPruning",
+            name="DisPFL_"
             + args.dataset 
             + "_"
             + args.model 
-            + "-r"
-            + str(args.comm_round)
-            + "-e"
-            + str(args.epochs)
-            + "-lr"
-            + str(args.lr)
-            + "-dp"
-            + str(args.target_density)
-            + "-delta"
-            + str(args.delta_T)
-            + "-T"
-            + str(args.T_end),
+            ,
             config=args,
         )
 
@@ -250,7 +245,7 @@ if __name__ == "__main__":
         test_data_global,
         train_data_local_num_dict,
         train_data_local_dict, 
-        test_data_local_dict,  # None here 
+        test_data_local_dict, 
         class_num,
     ] = dataset
 
@@ -262,17 +257,17 @@ if __name__ == "__main__":
     model = SparseModel(inner_model, target_density=args.target_density, )
 
     # start distributed training
-    FedML_Prunefl_distributed(
+    FedML_DisPFL_distributed(
         process_id,
         worker_number,
         device,
         comm,
         model,
-        train_data_num,
-        train_data_global, # None 
+        train_data_num, 
+        None, # We do net need train_data_global, so we set it as None
         test_data_global,
         train_data_local_num_dict,
         train_data_local_dict, 
-        test_data_local_dict, # None 
+        None, # We do net need test_data_local_dict, so we set it as None
         args,
     )

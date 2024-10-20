@@ -14,8 +14,8 @@ from api.data_preprocessing.cifar10.data_loader import load_partition_data_cifar
 
 from api.model.cv.resnet_gn import resnet18
 
-from api.standalone.prunefl.prunefl_api import PruneflAPI
-from api.standalone.prunefl.my_model_trainer_classification import MyModelTrainer as MyModelTrainerCLS
+from api.standalone.dispfl.dispfl_api import DisPFLAPI
+from api.standalone.dispfl.my_model_trainer_classification import MyModelTrainer as MyModelTrainerCLS
 
 from api.pruning.model_pruning import SparseModel
 
@@ -141,11 +141,12 @@ def create_model(args, model_name, output_dim):
     model = None
     if model_name == "resnet18":
         model = resnet18(num_classes=output_dim)
+    else:
+        raise Exception(f"the model {model_name} have not achieve yet !")
     return model
 
-
 def custom_model_trainer(args, model):
-        return MyModelTrainerCLS(model)
+    return MyModelTrainerCLS(model)
 
 
 if __name__ == "__main__":
@@ -185,5 +186,5 @@ if __name__ == "__main__":
     model_trainer = custom_model_trainer(args, model)
     logging.info(model)
 
-    pruneflAPI = PruneflAPI(dataset, device, args, model_trainer)
-    pruneflAPI.train()
+    dispflAPI = DisPFLAPI(dataset, device, args, model_trainer)
+    dispflAPI.train()
