@@ -15,8 +15,8 @@ pip install -r requirements.txt
 ```
 
 ### Quick Start
-To run the classical baseline, FedAVG, with 100 clients on CIFAR-10 dataset, use the following:
+To run the methods, DisPFL, with 100 clients on CIFAR-10 dataset, use the following:
 ```
 cd experiments/distributed/fedavg
-CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_fedavg_distributed_pytorch.sh 100 10 resnet18 hetero 500 5 64 0.001 cifar10 ./../../../data/cifar10 adam 
+CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_dispfl_distributed_pytorch.sh 100 10 resnet18 500 5 64 0.001 cifar10 0.5 0.1 10 300 128 10
 ```
