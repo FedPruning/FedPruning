@@ -25,8 +25,8 @@ class FedTinyCleanServerManager(ServerManager):
         self.preprocessed_client_lists = preprocessed_client_lists
         self.mode = 0 
 
-        # mode 0, the server send both weight and mask to clients, received the weight, perform weight aggregation, go to mode 1
-        # mode 1, the server send weights, received the weights, perform weights aggregation, if t % \delta t == 0 and t < t_end, go to mode 2, else, go to mode 1
+        # mode 0, the server send both weight and mask to clients, received the weight, perform weight aggregation, if t % \delta t == 0 and t <= t_end, go to mode 2, else, go to mode 1
+        # mode 1, the server send weights, received the weights, perform weights aggregation, if t % \delta t == 0 and t <= t_end, go to mode 2, else, go to mode 1
         # mode 2, the server send weights, received the weights and gradients, perform weights and gradients aggregation, pruning and growing to produce new mask,  go to mode 0
         # TODO (special mode, only for \delta t == 1) mode 3, the server send both weight and mask to clients, received the weight, perform weights and gradients aggregation, pruning and growing to produce new mask,  if t < t_end, go to mode 3 ,else , go to mode 0. 
 
@@ -51,7 +51,10 @@ class FedTinyCleanServerManager(ServerManager):
 
     def mode_convert(self,):
         if self.mode == 0:
-            self.mode = 1
+            if self.round_idx % self.args.delta_T == 0 and self.round_idx <= self.args.T_end :
+                self.mode = 2
+            else:
+                self.mode = 1
         elif self.mode == 1:
             if self.round_idx % self.args.delta_T == 0 and self.round_idx <= self.args.T_end :
                 self.mode = 2
@@ -72,11 +75,8 @@ class FedTinyCleanServerManager(ServerManager):
         model_params = msg_params.get(MyMessage.MSG_ARG_KEY_MODEL_PARAMS)
         local_sample_number = msg_params.get(MyMessage.MSG_ARG_KEY_NUM_SAMPLES)
         if self.mode in [2, 3]:
-            
             gradients = msg_params.get(MyMessage.MSG_ARG_KEY_MODEL_GRADIENT)
             self.aggregator.add_local_trained_gradient(sender_id - 1, gradients)
-            # logging.info("########## the server receive gradients is ##########")
-            # logging.info(sender_id - 1, gradients)
             
         self.aggregator.add_local_trained_result(sender_id - 1, model_params, local_sample_number)
         b_all_received = self.aggregator.check_whether_all_receive()
@@ -86,8 +86,10 @@ class FedTinyCleanServerManager(ServerManager):
             if self.mode in [2, 3]:
                 global_gradient = self.aggregator.aggregate_gradient()
                 # update the global model which is cached at the server side
-                self.aggregator.trainer.model.adjust_mask_dict(global_gradient, t=self.round_idx, T_end=self.args.T_end, alpha=self.args.adjust_alpha) 
-
+                self.aggregator.trainer.model.adjust_mask_dict(global_gradient, t=self.round_idx, T_end=self.args.T_end, alpha=self.args.adjust_alpha)
+                self.aggregator.trainer.model.to(self.aggregator.device)
+                self.aggregator.trainer.model.apply_mask()
+                
             # logging.info("mask_dict after pruning and growing = " +str(mask_dict))
             self.aggregator.test_on_server_for_all_clients(self.round_idx)
             
@@ -121,6 +123,8 @@ class FedTinyCleanServerManager(ServerManager):
             
             if self.mode in [0, 3]:
                 mask_dict = self.aggregator.trainer.model.mask_dict
+                for k in mask_dict:
+                    mask_dict[k] = mask_dict[k].cpu()
                 for receiver_id in range(1, self.size):
                     self.send_message_sync_model_to_client(receiver_id, global_model_params,
                         client_indexes[receiver_id - 1], self.mode, self.round_idx, mask_dict)

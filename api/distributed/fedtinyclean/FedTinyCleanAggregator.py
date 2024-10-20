@@ -105,14 +105,15 @@ class FedTinyCleanAggregator(object):
 
         # logging.info("################aggregate: %d" % len(gradient_list))
         (num0, averaged_grad) = gradient_list[0]
+        # logging.info(averaged_grad.keys())
         for k in averaged_grad.keys():
             for i in range(0, len(gradient_list)):
                 local_sample_number, local_grad = gradient_list[i]
                 w = local_sample_number / training_num
                 if i == 0:
-                    averaged_grad[k] = local_grad[k] * w
+                    averaged_grad[k] = local_grad[k].to(self.device) * w
                 else:
-                    averaged_grad[k] += local_grad[k] * w
+                    averaged_grad[k] += local_grad[k].to(self.device) * w
 
         end_time = time.time()
         logging.info("aggregate time cost: %d" % (end_time - start_time))
@@ -175,7 +176,8 @@ class FedTinyCleanAggregator(object):
             test_tot_corrects = []
             test_losses = []
 
-            if round_idx == self.args.comm_round - 1 or self.args.num_eval == -1:
+            # last five testing should be tested with full testing dataset
+            if round_idx >= (self.args.comm_round - 1 - self.args.frequency_of_the_test * 5) or self.args.num_eval == -1 :
                 metrics = self.trainer.test(self.test_global, self.device, self.args)
             else:
                 metrics = self.trainer.test(self.val_global, self.device, self.args)
