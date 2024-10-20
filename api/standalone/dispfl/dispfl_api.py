@@ -6,17 +6,22 @@ import numpy as np
 import torch
 import wandb
 
-from ...standalone.prunefl.client import Client
-from ...pruning.init_scheme import generate_layer_density_dict, pruning, growing, f_decay, magnitude_prune,sparse_update_step
+from .client import Client
 
+try:
+    from api.pruning.init_scheme import sparse_update_step
+except:
+    from FedPruning.api.pruning.init_scheme import sparse_update_step
 
-class PruneflAPI(object):
+class DisPFLAPI(object):
     def __init__(self, dataset, device, args, model_trainer):
         self.device = device
         self.args = args
         [train_data_num, test_data_num, train_data_global, test_data_global,
          train_data_local_num_dict, train_data_local_dict, test_data_local_dict, class_num] = dataset
-        self.train_global = train_data_global
+        
+        # we do not use the train_data_global and test_data_local_dict 
+        # self.train_global = train_data_global
         self.test_global = test_data_global
         self.val_global = None
         self.train_data_num_in_total = train_data_num
@@ -25,10 +30,10 @@ class PruneflAPI(object):
         self.client_list = []
         self.train_data_local_num_dict = train_data_local_num_dict
         self.train_data_local_dict = train_data_local_dict
-        self.test_data_local_dict = test_data_local_dict
+        # self.test_data_local_dict = test_data_local_dict
 
         self.model_trainer = model_trainer
-        self._setup_clients(train_data_local_num_dict, train_data_local_dict, test_data_local_dict, model_trainer)
+        self._setup_clients(train_data_local_num_dict, train_data_local_dict, None, model_trainer)
 
     def _setup_clients(self, train_data_local_num_dict, train_data_local_dict, test_data_local_dict, model_trainer):
         logging.info("############setup_clients (START)#############")
@@ -39,7 +44,8 @@ class PruneflAPI(object):
             #sparse_model.to(self.device)
             #c = Client(client_idx, train_data_local_dict[client_idx], test_data_local_dict[client_idx],
             #           train_data_local_num_dict[client_idx], self.args, self.device, sparse_model)
-            c = Client(client_idx, train_data_local_dict[client_idx], test_data_local_dict[client_idx], train_data_local_num_dict[client_idx], self.args, self.device, model_trainer)
+
+            c = Client(client_idx, train_data_local_dict[client_idx], None, train_data_local_num_dict[client_idx], self.args, self.device, model_trainer)
 
             self.client_list.append(c)
         logging.info("############setup_clients (END)#############")
@@ -75,7 +81,7 @@ class PruneflAPI(object):
             for idx, client in enumerate(self.client_list):
                 # update dataset
                 client_idx = client_indexes[idx]
-                client.update_local_dataset(client_idx, self.train_data_local_dict[client_idx], self.test_data_local_dict[client_idx], self.train_data_local_num_dict[client_idx])
+                client.update_local_dataset(client_idx, self.train_data_local_dict[client_idx], None, self.train_data_local_num_dict[client_idx])
 
                 # train on new dataset
                 if flag == 1 :

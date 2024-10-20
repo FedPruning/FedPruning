@@ -1,11 +1,11 @@
 from mpi4py import MPI
 
-from .PruneflAggregator import PruneflAggregator
-from .PruneflTrainer import PruneflTrainer
-from .PruneflClientManager import PruneflClientManager
-from .PruneflServerManager import PruneflServerManager
+from .DisPFLAggregator import DisPFLAggregator
+from .DisPFLTrainer import DisPFLTrainer
+from .DisPFLClientManager import DisPFLClientManager
+from .DisPFLServerManager import DisPFLServerManager
 
-from .my_model_trainer_classification import MyModelTrainer as MyModelTrainerCLS
+from api.standalone.dispfl.my_model_trainer_classification import MyModelTrainer as MyModelTrainerCLS
 # from ...standalone.fedinitprune.my_model_trainer_nwp import MyModelTrainer as MyModelTrainerNWP
 # from ...standalone.fedinitprune.my_model_trainer_tag_prediction import MyModelTrainer as MyModelTrainerTAG
 
@@ -17,7 +17,7 @@ def FedML_init():
     return comm, process_id, worker_number
 
 
-def FedML_Prunefl_distributed(
+def FedML_DisPFL_distributed(
     process_id,
     worker_number,
     device,
@@ -88,7 +88,7 @@ def init_server(
 
     # aggregator
     worker_num = size - 1
-    aggregator = PruneflAggregator(
+    aggregator = DisPFLAggregator(
         train_data_global,
         test_data_global,
         train_data_num,
@@ -104,9 +104,9 @@ def init_server(
     # start the distributed training
     backend = args.backend
     if preprocessed_sampling_lists is None:
-        server_manager = PruneflServerManager(args, aggregator, comm, rank, size, backend)
+        server_manager = DisPFLServerManager(args, aggregator, comm, rank, size, backend)
     else:
-        server_manager = PruneflServerManager(
+        server_manager = DisPFLServerManager(
             args,
             aggregator,
             comm,
@@ -143,7 +143,7 @@ def init_client(
             model_trainer = MyModelTrainerCLS(model)
     model_trainer.set_id(client_index)
     backend = args.backend
-    trainer = PruneflTrainer(
+    trainer = DisPFLTrainer(
         client_index,
         train_data_local_dict,
         train_data_local_num_dict,
@@ -153,5 +153,5 @@ def init_client(
         args,
         model_trainer,
     )
-    client_manager = PruneflClientManager(args, trainer, comm, process_id, size, backend)
+    client_manager = DisPFLClientManager(args, trainer, comm, process_id, size, backend)
     client_manager.run()

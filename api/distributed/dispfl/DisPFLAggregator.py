@@ -9,7 +9,7 @@ import wandb
 
 from .utils import transform_list_to_tensor
 
-class PruneflAggregator(object):
+class DisPFLAggregator(object):
 
     def __init__(self, train_global, test_global, all_train_data_num,
                  train_data_local_dict, test_data_local_dict, train_data_local_num_dict, worker_num, device,
@@ -104,19 +104,19 @@ class PruneflAggregator(object):
         logging.info("len of self.model_dict[idx] = " + str(len(self.model_dict)))
 
         # logging.info("################aggregate: %d" % len(gradient_list))
-        (num0, averaged_params) = gradient_list[0]
-        for k in averaged_params.keys():
+        (num0, averaged_grad) = gradient_list[0]
+        for k in averaged_grad.keys():
             for i in range(0, len(gradient_list)):
-                local_sample_number, local_model_params = gradient_list[i]
+                local_sample_number, local_grad = gradient_list[i]
                 w = local_sample_number / training_num
                 if i == 0:
-                    averaged_params[k] = local_model_params[k].to(torch.device('cuda:0')) * w
+                    averaged_grad[k] = local_grad[k] * w
                 else:
-                    averaged_params[k] += local_model_params[k].to(torch.device('cuda:0')) * w
+                    averaged_grad[k] += local_grad[k] * w
 
         end_time = time.time()
         logging.info("aggregate time cost: %d" % (end_time - start_time))
-        return averaged_params
+        return averaged_grad
 
     def client_sampling(self, round_idx, client_num_in_total, client_num_per_round):
         if client_num_in_total == client_num_per_round:

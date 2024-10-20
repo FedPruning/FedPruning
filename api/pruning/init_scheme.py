@@ -99,7 +99,7 @@ def growing(model, mask_dict, growth_percentage):
 
 
 # 
-def sparse_update_step(model, gradients, mask_dict, t,T_end, alpha, layer_density_dict):
+def sparse_update_step(model, gradients, mask_dict, t, T_end, alpha):
     for name, param in model.named_parameters():
         if name in mask_dict:
             #num_elements = mask_dict[name].numel()

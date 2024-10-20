@@ -9,8 +9,7 @@ class MyMessage(object):
 
     # client to server
     MSG_TYPE_C2S_SEND_MODEL_TO_SERVER = 4
-    MSG_TYPE_C2S_SEND_STATS_TO_SERVER = 5
-    MSG_TYPE_C2S_SEND_MODEL_WITH_GRADIENT_TO_SERVER = 6
+    MSG_TYPE_C2S_SEND_MODEL_WITH_GRADIENT_TO_SERVER = 5
 
     MSG_ARG_KEY_TYPE = "msg_type"
     MSG_ARG_KEY_SENDER = "sender"
@@ -25,12 +24,15 @@ class MyMessage(object):
     MSG_ARG_KEY_MODEL_GRADIENT = "gradient"
     MSG_ARG_KEY_CLIENT_INDEX = "client_idx"
 
-    MSG_ARG_KEY_TRAIN_CORRECT = "train_correct"
-    MSG_ARG_KEY_TRAIN_ERROR = "train_error"
-    MSG_ARG_KEY_TRAIN_NUM = "train_num_sample"
+    MSG_ARG_KEY_MODE_CODE = "mode_code"
+    MSG_ARG_KEY_ROUND_IDX = "round_idx" 
 
-    MSG_ARG_KEY_TEST_CORRECT = "test_correct"
-    MSG_ARG_KEY_TEST_ERROR = "test_error"
-    MSG_ARG_KEY_TEST_NUM = "test_num_sample"
+    # MSG_ARG_KEY_TRAIN_CORRECT = "train_correct"
+    # MSG_ARG_KEY_TRAIN_ERROR = "train_error"
+    # MSG_ARG_KEY_TRAIN_NUM = "train_num_sample"
+
+    # MSG_ARG_KEY_TEST_CORRECT = "test_correct"
+    # MSG_ARG_KEY_TEST_ERROR = "test_error"
+    # MSG_ARG_KEY_TEST_NUM = "test_num_sample"
 
 

@@ -40,15 +40,15 @@ class Client:
             return weights
 
         #logging.debug("Trained local weights: " + str(weights)) 
-        return weights,gradeints
+        # return weights,gradeints
     
     def get_gradients(self):
         return self.model_trainer.get_model_gradients()
 
-    def local_test(self, b_use_test_dataset):
-        if b_use_test_dataset:
-            test_data = self.local_test_data
-        else:
-            test_data = self.local_training_data
-        metrics = self.model_trainer.test(test_data, self.device, self.args)
-        return metrics
+    # def local_test(self, b_use_test_dataset):
+    #     if b_use_test_dataset:
+    #         test_data = self.local_test_data
+    #     else:
+    #         test_data = self.local_training_data
+    #     metrics = self.model_trainer.test(test_data, self.device, self.args)
+    #     return metrics

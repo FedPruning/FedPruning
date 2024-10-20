@@ -6,9 +6,7 @@ from torch import nn
 try:
     from core.trainer.model_trainer import ModelTrainer
 except ImportError:
-    from FedML.core.trainer.model_trainer import ModelTrainer
-
-from api.pruning.init_scheme import generate_layer_density_dict, pruning, growing, f_decay, magnitude_prune
+    from FedPruning.core.trainer.model_trainer import ModelTrainer
 
 class MyModelTrainer(ModelTrainer):
 
@@ -21,7 +19,12 @@ class MyModelTrainer(ModelTrainer):
     def set_model_params(self, model_parameters):
         self.model.load_state_dict(model_parameters, strict=False)
 
-    def train(self, train_data, device, args,flag):
+    def train(self, train_data, device, args, mode, round_idx = None):
+
+        # mode 0 :  training with mask 
+        # mode 1 : training with mask 
+        # mode 2 : training with mask, calculate the gradient
+        # mode 3 : training with mask, calculate the gradient
         model = self.model
 
         model.to(device)
@@ -34,16 +37,9 @@ class MyModelTrainer(ModelTrainer):
         else:
             optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, self.model.parameters()), lr=args.lr,
                                          weight_decay=args.wd, amsgrad=True)
-      #  initial_lr = args.initial_lr
-      # final_lr = args.final_lr
-
-
+            
         epoch_loss = []
         for epoch in range(args.epochs):
-            # Calculate the decayed learning rate
-            #current_lr = initial_lr * math.exp((epoch / args.epochs) * math.log(final_lr / initial_lr))
-            #for param_group in optimizer.param_groups:
-            #    param_group['lr'] = current_lr
             batch_loss = []
             for batch_idx, (x, labels) in enumerate(train_data):
                 x, labels = x.to(device), labels.to(device)
@@ -60,18 +56,23 @@ class MyModelTrainer(ModelTrainer):
                 # logging.info('Update Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 #     epoch, (batch_idx + 1) * args.batch_size, len(train_data) * args.batch_size,
                 #            100. * (batch_idx + 1) / len(train_data), loss.item()))
-                # Collect gradients
-                if flag==1:
-                   gradients = {name: param.grad.clone() for name, param in model.named_parameters() if param.requires_grad}
+
                 batch_loss.append(loss.item())
             epoch_loss.append(sum(batch_loss) / len(batch_loss))
-            logging.info('Client Index = {}\tEpoch: {}\tLoss: {:.6f}'.format(
-                self.id, epoch, sum(epoch_loss) / len(epoch_loss)))
-            local_params = model.state_dict()
-            if flag==1:
-                return gradients
+            logging.info('Client Index = {}\tEpoch: {}\tLoss: {:.6f}'.format(self.id, epoch, sum(epoch_loss) / len(epoch_loss)))
 
+        # Collect gradients
+        if mode in [2, 3]:
+            for batch_idx, (x, labels) in enumerate(train_data):
+                x, labels = x.to(device), labels.to(device)
+                log_probs = model(x)
+                loss = criterion(log_probs, labels)
+                loss.backward()
+            
+            gradients = {name: param.grad.data.clone() for name, param in model.named_parameters() if param.requires_grad}
+            model.zero_grad()
 
+            return gradients
 
     def test(self, test_data, device, args):
         model = self.model
