@@ -68,10 +68,9 @@ class MyModelTrainer(ModelTrainer):
                 log_probs = model(x)
                 loss = criterion(log_probs, labels)
                 loss.backward()
-            
-            gradients = {name: param.grad.data.clone() for name, param in model.named_parameters() if param.requires_grad}
-            model.zero_grad()
 
+            gradients = {name: param.grad.data.cpu().clone() for name, param in model.named_parameters() if param.requires_grad}
+            model.zero_grad()
             return gradients
 
     def test(self, test_data, device, args):

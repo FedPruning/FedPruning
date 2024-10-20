@@ -1,12 +1,12 @@
 
 ## Quick Start
 ```
-CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_dispfl_distributed_pytorch.sh 10 10 resnet18 200 2 64 0.001 cifar10 0.5 0.1 10 100 128 5
+CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_fedtinyclean_distributed_pytorch.sh 100 10 resnet18 500 5 64 0.001 cifar10 0.5 0.1 10 300 128 10
 ```
 
 ## Usage
 ```
-CUDA_VISIBLE_DEVICES=[gpus] sh run_fedavg_distributed_pytorch.sh [client_num_in_total] [client_num_per_round] [model] [comm_round] [epochs] [batch_size] [initial_lr] [dataset] [partition_alpha] [target_density] [delta_T] [T_end] [num_eval] [frequency_of_the_test]
+CUDA_VISIBLE_DEVICES=[gpus] sh run_fedtinyclean_distributed_pytorch.sh [client_num_in_total] [client_num_per_round] [model] [comm_round] [epochs] [batch_size] [initial_lr] [dataset] [partition_alpha] [target_density] [delta_T] [T_end] [num_eval] [frequency_of_the_test]
 ```
 
 where
