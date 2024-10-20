@@ -3,14 +3,15 @@ from typing import Dict, List
 from torch import nn
 from api.pruning.init_scheme import generate_layer_density_dict, pruning, sparse_update_step
 import warnings
-
+import logging
 
 class SparseModel(nn.Module):
     def __init__(self, model,
                  target_density:float=1.,
                  strategy:str="uniform_magnitude",
                  mask_dict: dict = {},
-                 ignore_layers:list[int, str, type]=[0, "bias", nn.BatchNorm2d, "bn"]
+                 ignore_layers:list[int, str, type]=[0, "bias", nn.BatchNorm2d, "bn"], 
+                 device = None,
                  ):
         super(SparseModel, self).__init__()
         # strategy is a str that [sparsity_distribution]_[pruning_strategy]
@@ -21,6 +22,7 @@ class SparseModel(nn.Module):
         self.strategy = strategy
         self.target_density = target_density
         self.ignore_layers = ignore_layers
+        self.device = device
 
 
         # layer_set includes all layer names
@@ -40,13 +42,11 @@ class SparseModel(nn.Module):
             self.layer_density_dict, self.mask_dict = self._init_prune()
 
 
-    def to(self, device=None, *args, **kwargs):
-        if not device:
-            device = self.model.device
-
-        self.model.to(device)
+    def to(self, device, *args, **kwargs):
+        self.device = device
+        self.model.to(device, *args, **kwargs)
         for name in self.mask_dict:
-            self.mask_dict[name] = self.mask_dict[name].to(device)
+            self.mask_dict[name] = self.mask_dict[name].to(device, *args, **kwargs)
 
     def _determine_sparse_layers(self):
         sparse_layer_set = self.layer_set.copy()
@@ -116,15 +116,21 @@ class SparseModel(nn.Module):
         model_mask = pruning(self.model, layer_density_dict, pruning_strategy)
         return layer_density_dict, model_mask
     
+    def parameters(self, **kwargs):
+        return self.model.parameters(**kwargs)
 
-
+    def named_parameters(self, **kwargs):
+        return self.model.named_parameters(**kwargs)
 
     @torch.no_grad()
-    def apply_mask(self):
+    def apply_mask(self,):
         for name, weight in self.model.named_parameters():
             if name in self.mask_dict:
-                weight.data = weight.data * self.mask_dict[name]
-
+                try:
+                    weight.data = weight.data * self.mask_dict[name]
+                except RuntimeError:
+                    raise RuntimeError(f"the device for weight is {weight.device} and mask_dict is on {self.mask_dict[name].device}") 
+                
     @torch.no_grad()
     def apply_mask_gradients(self):
         """
@@ -154,8 +160,6 @@ class SparseModel(nn.Module):
     
     def adjust_mask_dict(self, gradients, t, T_end, alpha):
         self.mask_dict = sparse_update_step(self.model, gradients, self.mask_dict, t, T_end, alpha)
-        self.apply_mask()
-
 
 ## TODO
 # actual density

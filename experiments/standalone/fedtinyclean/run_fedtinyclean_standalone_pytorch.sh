@@ -1,53 +1,34 @@
 #!/usr/bin/env bash
 
-GPU=$1
-
-CLIENT_NUM=$2
-
-WORKER_NUM=$3
-
-BATCH_SIZE=$4
-
-DATASET=$5
-
-DATA_PATH=$6
-
-MODEL=$7
-
-DISTRIBUTION=$8
-
-ROUND=$9
-
-EPOCH=${10}
-
-LR=${11}
-
-OPT=${12}
-
-CI=${13}
-
-DENSITY=${14}
-
-DELTA_T=${15}
-
-T_END=${16}
+CLIENT_NUM=$1
+WORKER_NUM=$2
+MODEL=$3
+ROUND=$4
+EPOCH=$5
+BATCH_SIZE=$6
+LR=$7
+DATASET=$8
+PARTITION_ALPHA=$9
+DENSITY=${10}
+DELTA_T=${11}
+T_END=${12}
+NUM_EVAL=${13}
+FREQ=${14}
 
 
 
 python3 ./main_fedtinyclean.py \
---gpu $GPU \
---dataset $DATASET \
---data_dir $DATA_PATH \
---model $MODEL \
---partition_method $DISTRIBUTION  \
---client_num_in_total $CLIENT_NUM \
---client_num_per_round $WORKER_NUM \
---comm_round $ROUND \
---epochs $EPOCH \
---batch_size $BATCH_SIZE \
---client_optimizer $OPT \
---lr $LR \
---ci $CI \
---target_density $DENSITY \
---delta_T $DELTA_T \
---T_end $T_END
+  --model $MODEL \
+  --dataset $DATASET \
+  --partition_alpha $PARTITION_ALPHA  \
+  --client_num_in_total $CLIENT_NUM \
+  --client_num_per_round $WORKER_NUM \
+  --comm_round $ROUND \
+  --epochs $EPOCH \
+  --batch_size $BATCH_SIZE \
+  --lr $LR \
+  --target_density $DENSITY \
+  --delta_T $DELTA_T \
+  --T_end $T_END \
+  --num_eval $NUM_EVAL \
+  --frequency_of_the_test $FREQ \
