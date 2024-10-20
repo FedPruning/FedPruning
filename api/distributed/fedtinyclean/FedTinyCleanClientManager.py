@@ -82,10 +82,8 @@ class FedTinyCleanClientManager(ClientManager):
 
     def __train(self):
         logging.info("#######training########### round_id = %d" % self.round_idx)
-        weights, gradient, local_sample_num = self.trainer.train(self.round_idx, self.mode)
+        weights, gradient, local_sample_num = self.trainer.train(mode = self.mode, round_idx=self.round_idx)
         if self.mode in [2, 3]:
-            # logging.info("########## the client send gradients is ##########")
-            # logging.info(gradient)
             self.send_model_to_server(0, weights, local_sample_num, gradient)
         else:
             self.send_model_to_server(0, weights, local_sample_num)

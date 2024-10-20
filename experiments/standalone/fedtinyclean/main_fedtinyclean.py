@@ -14,8 +14,8 @@ from api.data_preprocessing.cifar10.data_loader import load_partition_data_cifar
 
 from api.model.cv.resnet_gn import resnet18
 
-from api.standalone.dispfl.dispfl_api import DisPFLAPI
-from api.standalone.dispfl.my_model_trainer_classification import MyModelTrainer as MyModelTrainerCLS
+from api.standalone.fedtinyclean.fedtinyclean_api import FedTinyCleanAPI
+from api.standalone.fedtinyclean.my_model_trainer_classification import MyModelTrainer as MyModelTrainerCLS
 
 from api.pruning.model_pruning import SparseModel
 
@@ -32,26 +32,17 @@ def add_args(parser):
     parser.add_argument('--dataset', type=str, default='cifar10', metavar='N',
                         help='dataset used for training')
 
-    parser.add_argument('--data_dir', type=str, default='./../../../data/cifar10',
-                        help='data directory')
-
-    parser.add_argument('--partition_method', type=str, default='hetero', metavar='N',
-                        help='how to partition the dataset on local workers')
-
     parser.add_argument('--partition_alpha', type=float, default=0.5, metavar='PA',
                         help='partition alpha (default: 0.5)')
+    
+    parser.add_argument("--adjust_alpha", type=float, default=0.2, help='the ratio of num elements for adjustments')
 
     parser.add_argument('--batch_size', type=int, default=128, metavar='N',
                         help='input batch size for training (default: 64)')
 
-    parser.add_argument('--client_optimizer', type=str, default='adam',
-                        help='SGD with momentum; adam')
-
     parser.add_argument('--lr', type=float, default=0.001, metavar='LR',
                         help='learning rate (default: 0.001)')
-
-    parser.add_argument('--wd', help='weight decay parameter;', type=float, default=0.001)
-
+    
     parser.add_argument('--epochs', type=int, default=5, metavar='EP',
                         help='how many epochs will be trained locally')
 
@@ -67,23 +58,43 @@ def add_args(parser):
     parser.add_argument('--frequency_of_the_test', type=int, default=5,
                         help='the frequency of the algorithms')
 
-    parser.add_argument('--gpu', type=int, default=0,
-                        help='gpu')
-
-    parser.add_argument('--ci', type=int, default=0,
-                        help='CI')
-    
     parser.add_argument('--target_density', type=float, default=0.5,
                         help='pruning target density')
     
     parser.add_argument('--delta_T', type=int, default=10,help='delta t for update')
 
     parser.add_argument('--T_end',type=int,default=100,help='end of time for update')
+
+    parser.add_argument(
+        "--num_eval", type=int, default=128, help="the number of the data samples used for eval, -1 is the total testing dataset."
+    )
+
+    # following arguments rarely change
+    parser.add_argument('--gpu', type=int, default=0,
+                        help='gpu')
+
+    parser.add_argument('--ci', type=int, default=0,
+                        help='CI')
     
+    parser.add_argument('--client_optimizer', type=str, default='sgd',
+                        help='SGD with momentum; adam')
+
+    parser.add_argument('--wd', help='weight decay parameter;', type=float, default=0.001)
+
+    parser.add_argument('--data_dir', type=str, default='./../../../data/cifar10',
+                        help='data directory')
+
+    parser.add_argument('--partition_method', type=str, default='hetero', metavar='N',
+                        help='how to partition the dataset on local workers')
+
     return parser
 
 
 def load_data(args, dataset_name):
+
+    if args.data_dir is None:
+        args.data_dir = f"./../../../data/{dataset_name}"
+
     # check if the centralized training is enabled
     centralized = True if args.client_num_in_total == 1 else False
 
@@ -95,8 +106,6 @@ def load_data(args, dataset_name):
     else:
         full_batch = False
 
-
-   
     if dataset_name == "cifar10":
         data_loader = load_partition_data_cifar10
        
@@ -161,10 +170,14 @@ if __name__ == "__main__":
     logger.info(device)
 
     wandb.init(
-        project="fedml",
-        name="Prunefl-r" + str(args.comm_round) + "-e" + str(args.epochs) + "-lr" + str(args.lr)+ "-dp" + str(args.target_density) + "-delta" + str(args.delta_T) + "-T" + str(args.T_end),
-        config=args
-    )
+            project="FedPruning",
+            name="FedTiny-Clean-Standalone_"
+            + args.dataset 
+            + "_"
+            + args.model 
+            ,
+            config=args,
+        )
 
     # Set the random seed. The np.random seed determines the dataset partition.
     # The torch_manual_seed determines the initial weight.
@@ -186,5 +199,5 @@ if __name__ == "__main__":
     model_trainer = custom_model_trainer(args, model)
     logging.info(model)
 
-    dispflAPI = DisPFLAPI(dataset, device, args, model_trainer)
-    dispflAPI.train()
+    TrainingApi = FedTinyCleanAPI(dataset, device, args, model_trainer)
+    TrainingApi.train()
