@@ -34,7 +34,7 @@ T_END=${16}
 
 
 
-python3 ./main_dispfl.py \
+python3 ./main_fedtinyclean.py \
 --gpu $GPU \
 --dataset $DATASET \
 --data_dir $DATA_PATH \
