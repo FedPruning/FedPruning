@@ -15,7 +15,7 @@ from .message_define import MyMessage
 from .utils import transform_list_to_tensor, post_complete_message_to_sweep_process
 
 
-class DisPFLClientManager(ClientManager):
+class FedTinyCleanClientManager(ClientManager):
     def __init__(self, args, trainer, comm=None, rank=0, size=0, backend="MPI"):
         super().__init__(args, comm, rank, size, backend)
         self.trainer = trainer
@@ -55,7 +55,6 @@ class DisPFLClientManager(ClientManager):
         model_params = msg_params.get(MyMessage.MSG_ARG_KEY_MODEL_PARAMS)
         client_index = msg_params.get(MyMessage.MSG_ARG_KEY_CLIENT_INDEX)
         self.mode = msg_params.get(MyMessage.MSG_ARG_KEY_MODE_CODE)
-        
         self.round_idx =  msg_params.get(MyMessage.MSG_ARG_KEY_ROUND_IDX)
 
         if self.args.is_mobile == 1:
@@ -85,6 +84,8 @@ class DisPFLClientManager(ClientManager):
         logging.info("#######training########### round_id = %d" % self.round_idx)
         weights, gradient, local_sample_num = self.trainer.train(self.round_idx, self.mode)
         if self.mode in [2, 3]:
-            self.send_model_to_server(0, weights, local_sample_num)
-        else:
+            # logging.info("########## the client send gradients is ##########")
+            # logging.info(gradient)
             self.send_model_to_server(0, weights, local_sample_num, gradient)
+        else:
+            self.send_model_to_server(0, weights, local_sample_num)

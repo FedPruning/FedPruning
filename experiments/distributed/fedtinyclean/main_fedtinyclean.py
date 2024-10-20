@@ -26,7 +26,7 @@ from api.model.cv.resnet_gn import resnet18
 from api.model.cv.mobilenet import mobilenet
 from api.model.cv.resnet import resnet56
 
-from api.distributed.dispfl.DisPFLAPI import FedML_init, FedML_DisPFL_distributed
+from api.distributed.fedtinyclean.FedTinyCleanAPI import FedML_init, FedML_FedTinyClean_distributed
 from api.pruning.model_pruning import SparseModel
 
 
@@ -186,7 +186,7 @@ if __name__ == "__main__":
     logging.info(args)
 
     # customize the process name
-    str_process_name = "DisFL (distributed):" + str(process_id)
+    str_process_name = "FedTiny-Clean (distributed):" + str(process_id)
     setproctitle.setproctitle(str_process_name)
 
     # customize the log format
@@ -213,7 +213,7 @@ if __name__ == "__main__":
     if process_id == 0:
         wandb.init(
             project="FedPruning",
-            name="DisPFL_"
+            name="FedTiny-Clean_"
             + args.dataset 
             + "_"
             + args.model 
@@ -257,7 +257,7 @@ if __name__ == "__main__":
     model = SparseModel(inner_model, target_density=args.target_density, )
 
     # start distributed training
-    FedML_DisPFL_distributed(
+    FedML_FedTinyClean_distributed(
         process_id,
         worker_number,
         device,

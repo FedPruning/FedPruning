@@ -4,7 +4,6 @@ import sys
 
 from .message_define import MyMessage
 from .utils import transform_tensor_to_list, post_complete_message_to_sweep_process
-from ...pruning.init_scheme import sparse_update_step
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "../../../")))
 sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "../../../../FedML")))
@@ -15,7 +14,7 @@ except ImportError:
     from FedPruning.core.distributed.communication.message import Message
     from FedPruning.core.distributed.server.server_manager import ServerManager
 
-class DisPFLServerManager(ServerManager):
+class FedTinyCleanServerManager(ServerManager):
     def __init__(self, args, aggregator, comm=None, rank=0, size=0, backend="MPI", is_preprocessed=False, preprocessed_client_lists=None):
         super().__init__(args, comm, rank, size, backend)
         self.args = args
@@ -73,8 +72,11 @@ class DisPFLServerManager(ServerManager):
         model_params = msg_params.get(MyMessage.MSG_ARG_KEY_MODEL_PARAMS)
         local_sample_number = msg_params.get(MyMessage.MSG_ARG_KEY_NUM_SAMPLES)
         if self.mode in [2, 3]:
+            
             gradients = msg_params.get(MyMessage.MSG_ARG_KEY_MODEL_GRADIENT)
             self.aggregator.add_local_trained_gradient(sender_id - 1, gradients)
+            # logging.info("########## the server receive gradients is ##########")
+            # logging.info(sender_id - 1, gradients)
             
         self.aggregator.add_local_trained_result(sender_id - 1, model_params, local_sample_number)
         b_all_received = self.aggregator.check_whether_all_receive()
