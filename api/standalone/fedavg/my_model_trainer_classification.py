@@ -6,7 +6,7 @@ import math
 try:
     from core.trainer.model_trainer import ModelTrainer
 except ImportError:
-    from FedPrune.core.trainer.model_trainer import ModelTrainer
+    from FedPruning.core.trainer.model_trainer import ModelTrainer
 
 
 class MyModelTrainer(ModelTrainer):  
