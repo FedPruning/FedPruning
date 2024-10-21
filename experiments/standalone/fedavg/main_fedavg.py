@@ -31,27 +31,16 @@ def add_args(parser):
     parser.add_argument('--dataset', type=str, default='cifar10', metavar='N',
                         help='dataset used for training')
 
-    parser.add_argument('--data_dir', type=str, default='./../../../data/cifar10',
-                        help='data directory')
-
-    parser.add_argument('--partition_method', type=str, default='hetero', metavar='N',
-                        help='how to partition the dataset on local workers')
-
     parser.add_argument('--partition_alpha', type=float, default=0.5, metavar='PA',
                         help='partition alpha (default: 0.5)')
 
     parser.add_argument('--batch_size', type=int, default=128, metavar='N',
                         help='input batch size for training (default: 64)')
 
-    parser.add_argument('--client_optimizer', type=str, default='adam',
-                        help='SGD with momentum; adam')
-
     parser.add_argument('--initial_lr', type=float, default=0.001, metavar='LR',
                         help='learning rate (default: 0.1)')
     parser.add_argument('--final_lr', type=float, default=0.001, metavar='LR',
                         help='learning rate (default: 0.01)')
-
-    parser.add_argument('--wd', help='weight decay parameter;', type=float, default=0.001)
 
     parser.add_argument('--epochs', type=int, default=5, metavar='EP',
                         help='how many epochs will be trained locally')
@@ -68,17 +57,32 @@ def add_args(parser):
     parser.add_argument('--frequency_of_the_test', type=int, default=5,
                         help='the frequency of the algorithms')
 
+    # following arguments rarely change
     parser.add_argument('--gpu', type=int, default=0,
                         help='gpu')
 
     parser.add_argument('--ci', type=int, default=0,
                         help='CI')
-    
-    
+
+    parser.add_argument('--client_optimizer', type=str, default='sgd',
+                        help='SGD with momentum; adam')
+
+    parser.add_argument('--wd', help='weight decay parameter;', type=float, default=0.001)
+
+    parser.add_argument('--data_dir', type=str, default='./../../../data/cifar10',
+                        help='data directory')
+
+    parser.add_argument('--partition_method', type=str, default='hetero', metavar='N',
+                        help='how to partition the dataset on local workers')
+
     return parser
 
 
 def load_data(args, dataset_name):
+
+    if args.data_dir is None:
+        args.data_dir = f"./../../../data/{dataset_name}"
+
     # check if the centralized training is enabled
     centralized = True if args.client_num_in_total == 1 else False
 
@@ -89,8 +93,6 @@ def load_data(args, dataset_name):
         args.batch_size = 128  # temporary batch size
     else:
         full_batch = False
-
-
    
     if dataset_name == "cifar10":
         data_loader = load_partition_data_cifar10
@@ -136,13 +138,11 @@ def create_model(args, model_name, output_dim):
     model = None
     if model_name == "resnet18":
         model = resnet18(num_classes=output_dim)
-    if model_name == "resnet56":
-        model = resnet56(num_classes=output_dim)
     return model
 
 
 def custom_model_trainer(args, model):
-        return MyModelTrainerCLS(model)
+    return MyModelTrainerCLS(model)
 
 
 if __name__ == "__main__":
@@ -157,7 +157,7 @@ if __name__ == "__main__":
     logger.info(device)
 
     wandb.init(
-        project="fedml",
+        project="FedPruning",
         name="FedAVG-r" + str(args.comm_round) + "-e" + str(args.epochs) + "-initial_lr" + str(args.initial_lr),
         config=args
     )
