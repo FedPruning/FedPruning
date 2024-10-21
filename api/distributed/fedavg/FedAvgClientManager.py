@@ -3,14 +3,13 @@ import os
 import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "../../../")))
-sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "../../../../FedML")))
 
 try:
     from core.distributed.client.client_manager import ClientManager
     from core.distributed.communication.message import Message
 except ImportError:
-    from FedPrune.core.distributed.client.client_manager import ClientManager
-    from FedPrune.core.distributed.communication.message import Message
+    from FedPruning.core.distributed.client.client_manager import ClientManager
+    from FedPruning.core.distributed.communication.message import Message
 from .message_define import MyMessage
 from .utils import transform_list_to_tensor, post_complete_message_to_sweep_process
 
@@ -40,10 +39,6 @@ class FedAVGClientManager(ClientManager):
 
         self.trainer.update_model(global_model_params)
         self.trainer.update_dataset(int(client_index))
-        self.round_idx = 0
-        self.__train()
-
-    def start_training(self):
         self.round_idx = 0
         self.__train()
 

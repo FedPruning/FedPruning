@@ -5,7 +5,7 @@ from .FedAVGTrainer import FedAVGTrainer
 from .FedAvgClientManager import FedAVGClientManager
 from .FedAvgServerManager import FedAVGServerManager
 
-from .my_model_trainer_classification import MyModelTrainer as MyModelTrainerCLS
+from ...standalone.fedavg.my_model_trainer_classification import MyModelTrainer as MyModelTrainerCLS
 
 def FedML_init():
     comm = MPI.COMM_WORLD
