@@ -3,7 +3,6 @@ import os
 import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "../../../")))
-sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "../../../../FedML")))
 
 try:
     from core.distributed.client.client_manager import ClientManager
