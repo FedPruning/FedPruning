@@ -159,7 +159,7 @@ if __name__ == "__main__":
     logger.info(device)
 
     wandb.init(
-        project="fedml",
+        project="FedPruning",
         name="FedInitprune-r" + str(args.comm_round) + "-e" + str(args.epochs) + "-lr" + str(args.lr),
         config=args
     )
