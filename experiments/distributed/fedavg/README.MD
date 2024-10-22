@@ -6,7 +6,7 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_fedavg_distributed_pytorch.sh 100 10 resnet1
 
 ## Usage
 ```
-CUDA_VISIBLE_DEVICES=[gpus] sh run_fedavg_standalone_pytorch.sh [client_num_in_total] [client_num_per_round] [model] [comm_round] [epochs] [batch_size] [initial_lr] [dataset] [partition_alpha] [frequency_of_the_test]
+CUDA_VISIBLE_DEVICES=[gpus] sh run_fedavg_distributed_pytorch.sh [client_num_in_total] [client_num_per_round] [model] [comm_round] [epochs] [batch_size] [initial_lr] [dataset] [partition_alpha] [frequency_of_the_test]
 ```
 
 where
