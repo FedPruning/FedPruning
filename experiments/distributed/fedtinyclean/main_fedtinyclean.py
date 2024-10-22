@@ -22,9 +22,9 @@ from api.data_preprocessing.cifar10.data_loader import load_partition_data_cifar
 from api.data_preprocessing.cifar100.data_loader import load_partition_data_cifar100
 from api.data_preprocessing.cinic10.data_loader import load_partition_data_cinic10
 
-from api.model.cv.resnet_gn import resnet18
+from api.model.cv.resnet_gn import resnet18 as resnet18_gn
 from api.model.cv.mobilenet import mobilenet
-from api.model.cv.resnet import resnet56
+from api.model.cv.resnet import resnet18, resnet56
 
 from api.distributed.fedtinyclean.FedTinyCleanAPI import FedML_init, FedML_FedTinyClean_distributed
 from api.pruning.model_pruning import SparseModel
@@ -111,7 +111,7 @@ def add_args(parser):
 
     parser.add_argument("--data_dir", type=str, default=None, help="data directory")
 
-    parser.add_argument("--client_optimizer", type=str, default="sgd", help="SGD with momentum; adam")
+    parser.add_argument("--client_optimizer", type=str, default="adam", help="SGD with momentum; adam")
 
     args = parser.parse_args()
     return args
@@ -164,8 +164,10 @@ def load_data(args, dataset_name):
 def create_model(args, model_name, output_dim):
     logging.info("create_model. model_name = %s, output_dim = %s" % (model_name, output_dim))
     model = None
+    if model_name == "resnet18_gn":
+        model = resnet18_gn(num_classes=output_dim)
     if model_name == "resnet18":
-        model = resnet18(num_classes=output_dim)
+        model = resnet18(class_num=output_dim)
     elif model_name == "resnet56":
         model = resnet56(class_num=output_dim)
     elif model_name == "mobilenet":
