@@ -6,7 +6,7 @@ from torch import nn
 try:
     from core.trainer.model_trainer import ModelTrainer
 except ImportError:
-    from FedML.core.trainer.model_trainer import ModelTrainer
+    from FedPruning.core.trainer.model_trainer import ModelTrainer
 
 
 class MyModelTrainer(ModelTrainer):

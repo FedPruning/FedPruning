@@ -6,7 +6,6 @@ from .message_define import MyMessage
 from .utils import transform_tensor_to_list, post_complete_message_to_sweep_process
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "../../../")))
-sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "../../../../FedML")))
 try:
     from core.distributed.communication.message import Message
     from core.distributed.server.server_manager import ServerManager
