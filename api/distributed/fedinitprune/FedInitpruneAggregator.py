@@ -144,11 +144,12 @@ class FedInitpruneAggregator(object):
             test_tot_corrects = []
             test_losses = []
 
-            if round_idx == self.args.comm_round - 1 or self.args.num_eval == -1:
+            # last five testing should be tested with full testing dataset
+            if round_idx >= (self.args.comm_round - 1 - self.args.frequency_of_the_test * 5) or self.args.num_eval == -1:
                 metrics = self.trainer.test(self.test_global, self.device, self.args)
             else:
                 metrics = self.trainer.test(self.val_global, self.device, self.args)
-                
+
             test_tot_correct, test_num_sample, test_loss = metrics['test_correct'], metrics['test_total'], metrics[
                 'test_loss']
             test_tot_corrects.append(copy.deepcopy(test_tot_correct))

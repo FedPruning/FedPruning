@@ -6,14 +6,12 @@ from .message_define import MyMessage
 from .utils import transform_tensor_to_list, post_complete_message_to_sweep_process
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "../../../")))
-sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "../../../../FedML")))
 try:
     from core.distributed.communication.message import Message
     from core.distributed.server.server_manager import ServerManager
 except ImportError:
-    from FedPrune.core.distributed.communication.message import Message
-    from FedPrune.core.distributed.server.server_manager import ServerManager
-
+    from FedPruning.core.distributed.communication.message import Message
+    from FedPruning.core.distributed.server.server_manager import ServerManager
 
 class FedAVGServerManager(ServerManager):
     def __init__(self, args, aggregator, comm=None, rank=0, size=0, backend="MPI", is_preprocessed=False, preprocessed_client_lists=None):
