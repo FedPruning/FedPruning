@@ -25,8 +25,3 @@ where
 [partition_alpha] refers to the partition alpha, higher partition alpha makes lower degree of data heterogeneity.
 [frequency_of_the_test] the frequency to test/validate the performance during the training.
 ```
-
-export WANDB_DIR='./../../../../wandb/'
-export WANDB_CACHE_DIR='./../../../../wandb/.cache/'
-export WANDB_CONFIG_DIR='./../../../../wandb/.config/'
-wandb login a43329fc912eff90a92976498088770f5745bb57
