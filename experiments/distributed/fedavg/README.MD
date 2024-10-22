@@ -1,132 +1,31 @@
 
+## Quick Start
+```
+CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_fedavg_distributed_pytorch.sh 100 10 resnet18 200 10 64 0.2 cifar10 0.5 5
+```
+
 ## Usage
 ```
-mpirun -np $PROCESS_NUM -hostfile ./mpi_host_file python3 ./main_fedavg.py \
-  --gpu_mapping_file "gpu_mapping.yaml" \
-  --gpu_mapping_key "mapping_default" \
-  --model $MODEL \
-  --dataset $DATASET \
-  --data_dir $DATA_DIR \
-  --partition_method $DISTRIBUTION  \
-  --client_num_in_total $CLIENT_NUM \
-  --client_num_per_round $WORKER_NUM \
-  --comm_round $ROUND \
-  --epochs $EPOCH \
-  --client_optimizer $CLIENT_OPTIMIZER \
-  --batch_size $BATCH_SIZE \
-  --initial_lr $LR \
-  --ci $CI
+CUDA_VISIBLE_DEVICES=[gpus] sh run_fedavg_standalone_pytorch.sh [client_num_in_total] [client_num_per_round] [model] [comm_round] [epochs] [batch_size] [initial_lr] [dataset] [partition_alpha] [frequency_of_the_test]
 ```
 
-
-## ResNet18 Federated Training
-
-#### CIFAR10
+where
 
 ```
-CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_fedavg_distributed_pytorch.sh 100 10 resnet18 hetero 500 5 64 0.001 cifar10 ./../../../data/cifar10 adam 
-
+[gpus] specifies which GPUs to use.
+[client_num_in_total] is the total number of clients.
+[client_num_per_round] is the number of clients selected per round.
+[model] is the name of the model.
+[comm_round] is the number of communication rounds.
+[epochs] is the number of local epochs.
+[batch_size] is the batch size.
+[initial_lr] is the initial learning rate.
+[dataset] is the name of the dataset.
+[partition_alpha] refers to the partition alpha, higher partition alpha makes lower degree of data heterogeneity.
+[frequency_of_the_test] the frequency to test/validate the performance during the training.
 ```
-reference experimental result: https://wandb.ai/zhyu9/fedprune/runs/m6m5l1kp?nw=nwuserzhihaoyu6
-****
-Testing Accuracy:0.718
-****
 
-
-
-#### CIFAR100
-
-```
-CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_fedavg_distributed_pytorch.sh 100 10 resnet18 hetero 500 5 64 0.001 cifar100 ./../../../data/cifar100 adam 
-
-```
-reference experimental result: https://wandb.ai/zhyu9/fedprune/runs/dz7ublqn?nw=nwuserzhihaoyu6
-****
-Testing Accuracy:0.445
-****
-
-#### CINIC10
-
-```
-CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_fedavg_distributed_pytorch.sh 100 10 resnet18 hetero 500 5 64 0.001 cinic10 ./../../../data/cinic10 adam 
-
-```
-reference experimental result: https://wandb.ai/zhyu9/fedprune/runs/swds9tfd?nw=nwuserzhihaoyu6
-****
-Testing Accuracy:0.601
-****
-
-## ResNet56 Federated Training
-
-#### CIFAR10
-
-```
-CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_fedavg_distributed_pytorch.sh 100 10 resnet56 hetero 500 5 64 0.001 cifar10 ./../../../data/cifar10 adam 
-
-```
-reference experimental result: https://wandb.ai/zhyu9/fedprune/runs/p55t75wd?nw=nwuserzhihaoyu6
-****
-Testing Accuracy: 0.804
-****
-
-
-
-#### CIFAR100
-train on IID dataset 
-```
-CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_fedavg_distributed_pytorch.sh 100 10 resnet56 hetero 500 5 64 0.001 cifar100 ./../../../data/cifar100 adam 
-
-```
-reference experimental result: https://wandb.ai/zhyu9/fedprune/runs/6zq0d35p?nw=nwuserzhihaoyu6
-****
-Testing Accuracy: 0.539
-****
-
-#### CINIC10
-
-```
-CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_fedavg_distributed_pytorch.sh 100 10 resnet56 hetero 500 5 64 0.001 cinic10 ./../../../data/cinic10 adam 
-
-```
-reference experimental result: https://wandb.ai/zhyu9/fedprune/runs/16jfqepj?nw=nwuserzhihaoyu6
-****
-Testing Accuracy: 0.664
-****
-
-
-
-## MobileNet Federated Training
-
-
-#### CIFAR10
-
-```
-CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_fedavg_distributed_pytorch.sh 100 10 mobilenet hetero 500 5 64 0.001 cifar10 ./../../../data/cifar10 adam 
-
-```
-reference experimental result: https://wandb.ai/zhyu9/fedprune/runs/z04old5k?nw=nwuserzhihaoyu6
-****
-Testing Accuracy: 0.898
-****
-
-
-#### CIFAR100
-
-```
-CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_fedavg_distributed_pytorch.sh 100 10 mobilenet hetero 500 5 64 0.001 cifar100 ./../../../data/cifar100 adam 
-
-```
-reference experimental result: https://wandb.ai/zhyu9/fedprune/runs/yznynjub?nw=nwuserzhihaoyu6
-****
-Testing Accuracy: 0.445
-****
-#### CINIC10
-
-```
-CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_fedavg_distributed_pytorch.sh 100 10 mobilenet hetero 500 5 64 0.001 cinic10 ./../../../data/cinic10 adam 
-
-```
-reference experimental result: https://wandb.ai/zhyu9/fedprune/runs/tmpg7f1a?nw=nwuserzhihaoyu6
-****
-Testing Accuracy: 0.664
-****
+export WANDB_DIR='./../../../../wandb/'
+export WANDB_CACHE_DIR='./../../../../wandb/.cache/'
+export WANDB_CONFIG_DIR='./../../../../wandb/.config/'
+wandb login a43329fc912eff90a92976498088770f5745bb57

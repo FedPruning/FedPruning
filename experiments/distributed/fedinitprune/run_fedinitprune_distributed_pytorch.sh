@@ -20,14 +20,14 @@ hostname > mpi_host_file
 mpirun -np $PROCESS_NUM -hostfile ./mpi_host_file python3 ./main_fedinitprune.py \
   --gpu_mapping_file "gpu_mapping.yaml" \
   --gpu_mapping_key "mapping_default" \
-  --model $MODEL \
-  --dataset $DATASET \
   --client_num_in_total $CLIENT_NUM \
   --client_num_per_round $WORKER_NUM \
+  --model $MODEL \
   --comm_round $ROUND \
   --epochs $EPOCH \
   --batch_size $BATCH_SIZE \
   --lr $LR \
+  --dataset $DATASET \
   --target_density $DENSITY \
   --partition_alpha $PARTITION_ALPHA  \
   --frequency_of_the_test $FREQ \
