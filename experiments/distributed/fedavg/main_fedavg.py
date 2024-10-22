@@ -39,16 +39,6 @@ def add_args(parser):
 
     parser.add_argument("--dataset", type=str, default="cifar10", metavar="N", help="dataset used for training")
 
-    parser.add_argument("--data_dir", type=str, default="./../../../data/cifar10", help="data directory")
-
-    parser.add_argument(
-        "--partition_method",
-        type=str,
-        default="hetero",
-        metavar="N",
-        help="how to partition the dataset on local workers",
-    )
-
     parser.add_argument(
         "--partition_alpha", type=float, default=0.5, metavar="PA", help="partition alpha (default: 0.5)"
     )
@@ -67,50 +57,64 @@ def add_args(parser):
         "--num_eval", type=int, default=128, help="the number of the data samples used for eval, -1 is the total testing dataset."
     )
 
-    parser.add_argument("--client_optimizer", type=str, default="adam", help="SGD with momentum; adam")
-
-    parser.add_argument("--backend", type=str, default="MPI", help="Backend for Server and Client")
-
     parser.add_argument('--initial_lr', type=float, default=0.1, metavar='LR',
                         help='learning rate (default: 0.1)')
     
     parser.add_argument('--final_lr', type=float, default=0.01, metavar='LR',
                         help='learning rate (default: 0.01)')
 
-    parser.add_argument("--wd", help="weight decay parameter;", type=float, default=0.0001)
-
     parser.add_argument("--epochs", type=int, default=5, metavar="EP", help="how many epochs will be trained locally")
 
     parser.add_argument("--comm_round", type=int, default=10, help="how many round of communications we shoud use")
 
-    parser.add_argument(
-        "--is_mobile", type=int, default=1, help="whether the program is running on the FedML-Mobile server side"
-    )
-
     parser.add_argument("--frequency_of_the_test", type=int, default=1, help="the frequency of the algorithms")
 
-    parser.add_argument("--gpu_server_num", type=int, default=1, help="gpu_server_num")
-
-    parser.add_argument("--gpu_num_per_server", type=int, default=4, help="gpu_num_per_server")
+    # Following arguments are seldom changed
+    parser.add_argument(
+        "--gpu_mapping_key", type=str, default="mapping_default", help="the key in gpu utilization file"
+    )
+    parser.add_argument("--ci", type=int, default=0, help="CI")
 
     parser.add_argument(
         "--gpu_mapping_file",
         type=str,
         default="gpu_mapping.yaml",
         help="the gpu utilization file for servers and clients. If there is no \
-                        gpu_util_file, gpu will not be used.",
+                                gpu_util_file, gpu will not be used.",
     )
+
+    parser.add_argument("--gpu_server_num", type=int, default=1, help="gpu_server_num")
+
+    parser.add_argument("--gpu_num_per_server", type=int, default=4, help="gpu_num_per_server")
 
     parser.add_argument(
-        "--gpu_mapping_key", type=str, default="mapping_default", help="the key in gpu utilization file"
+        "--is_mobile", type=int, default=1, help="whether the program is running on the FedML-Mobile server side"
     )
 
-    parser.add_argument("--ci", type=int, default=0, help="CI")
+    parser.add_argument("--backend", type=str, default="MPI", help="Backend for Server and Client")
+
+    parser.add_argument("--wd", help="weight decay parameter;", type=float, default=0.001)
+
+    parser.add_argument(
+        "--partition_method",
+        type=str,
+        default="hetero",
+        metavar="N",
+        help="how to partition the dataset on local workers",
+    )
+
+    parser.add_argument("--data_dir", type=str, default=None, help="data directory")
+
+    parser.add_argument("--client_optimizer", type=str, default="sgd", help="SGD with momentum; adam")
+
     args = parser.parse_args()
     return args
 
 
 def load_data(args, dataset_name):
+
+    if args.data_dir is None:
+        args.data_dir = f"./../../../data/{dataset_name}"
 
     if dataset_name == "cifar10":
         data_loader = load_partition_data_cifar10
@@ -202,17 +206,12 @@ if __name__ == "__main__":
     # initialize the wandb machine learning experimental tracking platform (https://www.wandb.com/).
     if process_id == 0:
         wandb.init(
-            project="fedpruning",
+            project="FedPruning",
             name="FedAVG_"
             + args.dataset 
             + "_"
             + args.model 
-            + "-r"
-            + str(args.comm_round)
-            + "-e"
-            + str(args.epochs)
-            + "-lr"
-            + str(args.initial_lr),
+            ,
             config=args,
         )
 
