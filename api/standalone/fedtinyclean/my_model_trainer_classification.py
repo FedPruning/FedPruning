@@ -26,6 +26,7 @@ class MyModelTrainer(ModelTrainer):
         # mode 2 : training with mask, calculate the gradient
         # mode 3 : training with mask, calculate the gradient
         model = self.model
+        growth_data_mode=args.growth_data_mode
 
         model.to(device)
         model.train()
@@ -63,11 +64,32 @@ class MyModelTrainer(ModelTrainer):
 
         # Collect gradients
         if mode in [2, 3]:
-            for batch_idx, (x, labels) in enumerate(train_data):
+            if growth_data_mode == 'random': # Random growth, no data used
+             return {name: torch.randn_like(param, device='cpu').clone() for name, param in model.named_parameters() if param.requires_grad}
+            
+            elif growth_data_mode == 'single':# Use one data sample
+                x, labels = next(iter(train_data))
+                x, labels = x[0].unsqueeze(0).to(device), labels[0].unsqueeze(0).to(device)  # Take the first sample and add batch dimension
+                log_probs = model(x)
+                loss = criterion(log_probs, labels)
+                loss.backward()
+                
+            elif growth_data_mode == 'batch':# Use one batch of data
+                x, labels = next(iter(train_data))
                 x, labels = x.to(device), labels.to(device)
                 log_probs = model(x)
                 loss = criterion(log_probs, labels)
                 loss.backward()
+          
+            elif growth_data_mode == 'entire':# Use the entire dataset
+                for batch_idx, (x, labels) in enumerate(train_data):
+                    x, labels = x.to(device), labels.to(device)
+                    log_probs = model(x)
+                    loss = criterion(log_probs, labels)
+                    loss.backward()
+
+            else:
+                raise ValueError("Invalid growth_data_mode. Options are 'no_data', 'one_data', 'one_batch', 'entire_dataset'.")
 
             gradients = {name: param.grad.data.cpu().clone() for name, param in model.named_parameters() if param.requires_grad}
             model.zero_grad()
