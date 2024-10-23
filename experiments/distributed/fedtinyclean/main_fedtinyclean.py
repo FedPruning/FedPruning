@@ -113,6 +113,8 @@ def add_args(parser):
 
     parser.add_argument("--client_optimizer", type=str, default="adam", help="SGD with momentum; adam")
 
+    parser.add_argument("--growth_data_mode", type=str, default="entire", help=" the number of data samples used for parameter growth")
+
     args = parser.parse_args()
     return args
 

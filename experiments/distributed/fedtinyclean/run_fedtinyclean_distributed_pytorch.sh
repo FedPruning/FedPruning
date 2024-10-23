@@ -14,6 +14,7 @@ DELTA_T=${11}
 T_END=${12}
 NUM_EVAL=${13}
 FREQ=${14}
+GROWTH_DATA_MODE=${15}
 
 PROCESS_NUM=`expr $WORKER_NUM + 1`
 echo $PROCESS_NUM
@@ -37,3 +38,4 @@ mpirun -np $PROCESS_NUM -hostfile ./mpi_host_file python3 ./main_fedtinyclean.py
   --T_end $T_END \
   --num_eval $NUM_EVAL \
   --frequency_of_the_test $FREQ \
+  --growth_data_mode $GROWTH_DATA_MODE

@@ -1,7 +1,7 @@
 
 ## Quick Start
 ```
-CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_fedtinyclean_distributed_pytorch.sh 100 10 resnet18 500 5 64 0.001 cifar10 0.5 0.1 10 300 128 10
+CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_fedtinyclean_distributed_pytorch.sh 10 10 resnet18 100 1 64 0.001 cifar10 0.5 0.1 10 100 128 10 entire
 ```
 
 ## Usage
