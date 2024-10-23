@@ -69,7 +69,7 @@ class MyModelTrainer(ModelTrainer):
             
             elif growth_data_mode == 'single':# Use one data sample
                 x, labels = next(iter(train_data))
-                x, labels = x[:args.batch_size].unsqueeze(0).to(device), labels[:args.batch_size].unsqueeze(0).to(device)  # Take the first sample and add batch dimension
+                x, labels = x[0].unsqueeze(0).repeat(2, 1, 1, 1).to(device), labels[0].unsqueeze(0).repeat(2).to(device)  # Duplicate the sample to create a pseudo-batch
                 log_probs = model(x)
                 loss = criterion(log_probs, labels)
                 loss.backward()
