@@ -15,7 +15,7 @@ echo $PROCESS_NUM
 hostname > mpi_host_file
 
 # Initialize the command with mandatory arguments
-command="mpirun -np $PROCESS_NUM -hostfile ./mpi_host_file python3 ./main_fedinitprune.py \
+command="mpirun -np $PROCESS_NUM -hostfile ./mpi_host_file python3 ./main_fedtinyclean.py \
   --model $MODEL \
   --dataset $DATASET \
   --client_num_in_total $CLIENT_NUM \
@@ -35,5 +35,6 @@ for arg in "$@"; do
 done
 
 eval $command
+
 
 
