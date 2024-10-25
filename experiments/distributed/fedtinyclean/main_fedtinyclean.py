@@ -57,8 +57,9 @@ def add_args(parser):
     parser.add_argument(
         "--num_eval", type=int, default=128, help="the number of the data samples used for eval, -1 is the total testing dataset."
     )
-    parser.add_argument('--lr', type=float, default=0.001, metavar='LR',
-                        help='learning rate (default: 0.001)')
+    parser.add_argument('--initial_lr', type=float, default=1, metavar='LR',
+                        help='learning rate (default: 1)')
+    parser.add_argument('--final_lr', type=float, default=0.01, metavar='LR',help='final learning rate (default: 0.01)')
 
     parser.add_argument("--epochs", type=int, default=5, metavar="EP", help="how many epochs will be trained locally")
 

@@ -1,5 +1,5 @@
 import logging
-
+import math
 import torch
 from torch import nn
 
@@ -34,13 +34,21 @@ class MyModelTrainer(ModelTrainer):
         # train and update
         criterion = nn.CrossEntropyLoss().to(device)
         if args.client_optimizer == "sgd":
-            optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, self.model.parameters()), lr=args.lr)
+            optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, self.model.parameters()), lr=args.lr,weight_decay=args.wd)
         else:
             optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, self.model.parameters()), lr=args.lr,
                                          weight_decay=args.wd, amsgrad=True)
             
         epoch_loss = []
+        initial_lr = args.initial_lr
+        final_lr = args.final_lr
+
+
         for epoch in range(args.epochs):
+            # Calculate the decayed learning rate
+            current_lr = initial_lr * math.exp((epoch / args.epochs) * math.log(final_lr / initial_lr))
+            for param_group in optimizer.param_groups:
+                param_group['lr'] = current_lr
             batch_loss = []
             for batch_idx, (x, labels) in enumerate(train_data):
                 x, labels = x.to(device), labels.to(device)

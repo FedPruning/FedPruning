@@ -7,7 +7,8 @@ ROUND=$5
 EPOCH=$6
 CLIENT_OPTIMIZER=$7
 DENSITY=$8
-LR=$9
+INITLR=$9
+FINALLR=$10
 
 PROCESS_NUM=`expr $WORKER_NUM + 1`
 echo $PROCESS_NUM
@@ -24,10 +25,11 @@ command="mpirun -np $PROCESS_NUM -hostfile ./mpi_host_file python3 ./main_fedtin
   --epochs $EPOCH \
   --client_optimizer $CLIENT_OPTIMIZER \
   --target_density $DENSITY \
-  --lr $LR"
+  --initial_lr $INITLR \
+  --final_lr $FINALLR"
 
-# Shift the first 9 arguments
-shift 9
+# Shift the first 10 arguments
+shift 10
 
 # Append optional arguments only if they are provided
 for arg in "$@"; do

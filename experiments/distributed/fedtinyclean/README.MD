@@ -1,7 +1,7 @@
 
 ## Quick Start
 ```
-CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_fedtinyclean_default.sh resnet18  cifar10 10 10 100 1 sgd 0.1 0.1
+CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_fedtinyclean_default.sh resnet18  cifar10 10 10 100 1 sgd 0.1 1 0.01
 ```
 
 ## Usage
