@@ -6,7 +6,7 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_fedtinyclean_default.sh resnet18  cifar10 10
 
 ## Usage
 ```
-CUDA_VISIBLE_DEVICES=[gpus] sh run_fedtinyclean_distributed_pytorch.sh [model] [dataset] [client_num_in_total] [client_num_per_round]  [comm_round] [epochs] [ooptimizer] [density] [initial_lr] 
+CUDA_VISIBLE_DEVICES=[gpus] sh run_fedtinyclean_distributed_pytorch.sh [model] [dataset] [client_num_in_total] [client_num_per_round]  [comm_round] [epochs] [ooptimizer] [density] [initial_lr] [final_lr]
 ```
 
 where
