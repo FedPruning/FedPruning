@@ -24,15 +24,14 @@ command="mpirun -np $PROCESS_NUM -hostfile ./mpi_host_file python3 ./main_fedini
   --epochs $EPOCH \
   --optimizer $CLIENT_OPTIMIZER \
   --density $DENSITY \
-  --lr $LR 
- 
+  --lr $LR"
+
 # Append optional arguments only if they are provided
 if [ $# -gt 9 ]; then
   for ((i=10; i<=$#; i++)); do
     command="$command ${!i}"
   done
 fi
-
 
 eval $command
 
