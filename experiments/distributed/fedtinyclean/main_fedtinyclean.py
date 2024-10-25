@@ -36,7 +36,7 @@ def add_args(parser):
     return a parser added with args required by fit
     """
     # Training settings
-    parser.add_argument("--model", type=str, default="resnet56", metavar="N", help="neural network used in training")
+    parser.add_argument("--model", type=str, default="resnet18", metavar="N", help="neural network used in training")
 
     parser.add_argument("--dataset", type=str, default="cifar10", metavar="N", help="dataset used for training")
 
@@ -51,7 +51,7 @@ def add_args(parser):
     parser.add_argument("--client_num_per_round", type=int, default=10, metavar="NN", help="number of workers")
 
     parser.add_argument(
-        "--batch_size", type=int, default=128, metavar="N", help="input batch size for training (default: 64)"
+        "--batch_size", type=int, default=64, metavar="N", help="input batch size for training (default: 64)"
     )
 
     parser.add_argument(
@@ -62,11 +62,11 @@ def add_args(parser):
 
     parser.add_argument("--epochs", type=int, default=5, metavar="EP", help="how many epochs will be trained locally")
 
-    parser.add_argument("--comm_round", type=int, default=10, help="how many round of communications we shoud use")
+    parser.add_argument("--comm_round", type=int, default=100, help="how many round of communications we shoud use")
 
-    parser.add_argument("--frequency_of_the_test", type=int, default=5, help="the frequency of the algorithms")
+    parser.add_argument("--frequency_of_the_test", type=int, default=10, help="the frequency of the algorithms")
 
-    parser.add_argument('--target_density', type=float, default=0.5,
+    parser.add_argument('--target_density', type=float, default=0.1,
                         help='pruning target density')
 
     parser.add_argument('--delta_T', type=int, default=10, help='delta t for update')
@@ -111,7 +111,7 @@ def add_args(parser):
 
     parser.add_argument("--data_dir", type=str, default=None, help="data directory")
 
-    parser.add_argument("--client_optimizer", type=str, default="adam", help="SGD with momentum; adam")
+    parser.add_argument("--client_optimizer", type=str, default="sgd", help="SGD")
 
     parser.add_argument("--growth_data_mode", type=str, default="entire", help=" the number of data samples used for parameter growth")
 
