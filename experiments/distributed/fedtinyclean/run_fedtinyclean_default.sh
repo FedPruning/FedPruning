@@ -22,8 +22,8 @@ command="mpirun -np $PROCESS_NUM -hostfile ./mpi_host_file python3 ./main_fedtin
   --client_num_per_round $WORKER_NUM \
   --comm_round $ROUND \
   --epochs $EPOCH \
-  --optimizer $CLIENT_OPTIMIZER \
-  --density $DENSITY \
+  --client_optimizer $CLIENT_OPTIMIZER \
+  --target_density $DENSITY \
   --lr $LR"
 
 # Shift the first 9 arguments
