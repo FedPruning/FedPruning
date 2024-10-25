@@ -37,5 +37,5 @@ mpirun -np $PROCESS_NUM -hostfile ./mpi_host_file python3 ./main_fedtinyclean.py
   --T_end $T_END \
   --num_eval $NUM_EVAL \
   --frequency_of_the_test $FREQ \
-  --adjust_alpha $ADJUSTALPHA 
+  --adjust_alpha $ADJUSTALPHA \
   --growth_data_mode $GROWTH_DATA_MODE
