@@ -26,12 +26,13 @@ command="mpirun -np $PROCESS_NUM -hostfile ./mpi_host_file python3 ./main_fedini
   --density $DENSITY \
   --lr $LR"
 
+# Shift the first 9 arguments
+shift 9
+
 # Append optional arguments only if they are provided
-if [ $# -gt 9 ]; then
-  for ((i=10; i<=$#; i++)); do
-    command="$command ${!i}"
-  done
-fi
+for arg in "$@"; do
+  command="$command $arg"
+done
 
 eval $command
 
