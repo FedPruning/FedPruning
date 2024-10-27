@@ -1,19 +1,12 @@
 #!/usr/bin/env bash
-
-CLIENT_NUM=$1
-WORKER_NUM=$2
-MODEL=$3
-ROUND=$4
-EPOCH=$5
-BATCH_SIZE=$6
-LR=$7
-DATASET=$8
-PARTITION_ALPHA=$9
-DENSITY=${10}
-DELTA_T=${11}
-T_END=${12}
-NUM_EVAL=${13}
-FREQ=${14}
+MODEL=$1
+DATASET=$2
+CLIENT_NUM=$3
+WORKER_NUM=$4
+ROUND=$5
+EPOCH=$6
+DENSITY=$7
+LR=$8
 
 PROCESS_NUM=`expr $WORKER_NUM + 1`
 echo $PROCESS_NUM
@@ -25,15 +18,20 @@ mpirun -np $PROCESS_NUM -hostfile ./mpi_host_file python3 ./main_feddst.py \
   --gpu_mapping_key "mapping_default" \
   --model $MODEL \
   --dataset $DATASET \
-  --partition_alpha $PARTITION_ALPHA  \
   --client_num_in_total $CLIENT_NUM \
   --client_num_per_round $WORKER_NUM \
   --comm_round $ROUND \
   --epochs $EPOCH \
-  --batch_size $BATCH_SIZE \
   --lr $LR \
   --target_density $DENSITY \
-  --delta_T $DELTA_T \
-  --T_end $T_END \
-  --num_eval $NUM_EVAL \
-  --frequency_of_the_test $FREQ \
+
+
+# Shift the first 9 arguments
+shift 8
+
+# Append optional arguments only if they are provided
+for arg in "$@"; do
+  command="$command $arg"
+done
+
+eval $command
