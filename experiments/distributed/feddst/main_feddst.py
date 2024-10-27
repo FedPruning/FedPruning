@@ -62,6 +62,8 @@ def add_args(parser):
 
     parser.add_argument("--epochs", type=int, default=5, metavar="EP", help="how many epochs will be trained locally")
 
+    parser.add_argument("--A_epochs", type=int, default=2, metavar="EP", help="how many epochs will be trained before pruning and growing ")
+
     parser.add_argument("--comm_round", type=int, default=10, help="how many round of communications we shoud use")
 
     parser.add_argument("--frequency_of_the_test", type=int, default=5, help="the frequency of the algorithms")
@@ -113,7 +115,9 @@ def add_args(parser):
 
     parser.add_argument("--client_optimizer", type=str, default="sgd", help="SGD with momentum; adam")
 
-    args = parser.parse_args()
+    parser.add_argument("--growth_data_mode", type=str, default="batch", help=" the number of data samples used for parameter growth, option are [ 'random', 'single', 'batch', 'entire']" )
+
+    args = parser.parse_args()  
     return args
 
 

@@ -63,12 +63,25 @@ class MyModelTrainer(ModelTrainer):
 
         # Collect gradients
         if mode in [2, 3]:
-            for batch_idx, (x, labels) in enumerate(train_data):
-                x, labels = x.to(device), labels.to(device)
+            
+            if args.growth_data_mode == "random":
+                return {name: torch.randn_like(param, device='cpu').clone() for name, param in model.named_parameters() if param.requires_grad}
+
+            elif args.growth_data_mode == "single":
+                x, labels = next(iter(train_data))
+                x, labels = x[0].unsqueeze(0).repeat(2, 1, 1, 1).to(device), labels[0].unsqueeze(0).repeat(2).to(device)  # Duplicate the sample to create a pseudo-batch
                 log_probs = model(x)
                 loss = criterion(log_probs, labels)
                 loss.backward()
-
+            else:
+                for batch_idx, (x, labels) in enumerate(train_data):
+                    x, labels = x.to(device), labels.to(device)
+                    log_probs = model(x)
+                    loss = criterion(log_probs, labels)
+                    loss.backward()
+                    if args.growth_data_mode == "batch":
+                        break
+                    
             gradients = {name: param.grad.data.cpu().clone() for name, param in model.named_parameters() if param.requires_grad}
             model.zero_grad()
             return gradients
