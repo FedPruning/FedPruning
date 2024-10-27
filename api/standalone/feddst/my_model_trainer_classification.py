@@ -39,7 +39,13 @@ class MyModelTrainer(ModelTrainer):
                                          weight_decay=args.wd, amsgrad=True)
             
         epoch_loss = []
-        for epoch in range(args.epochs):
+
+        if mode in [0, 1]:
+            first_epochs = args.epochs
+        else:
+            first_epochs = min(args.epochs, args.A_epochs)
+
+        for epoch in range(first_epochs):
             batch_loss = []
             for batch_idx, (x, labels) in enumerate(train_data):
                 x, labels = x.to(device), labels.to(device)
@@ -62,46 +68,46 @@ class MyModelTrainer(ModelTrainer):
             logging.info('Client Index = {}\tEpoch: {}\tLoss: {:.6f}'.format(self.id, epoch, sum(epoch_loss) / len(epoch_loss)))
 
         if mode in [2, 3]:
-            # gradient
-            for batch_idx, (x, labels) in enumerate(train_data):
-                x, labels = x.to(device), labels.to(device)
+            if args.growth_data_mode == "random":
+                gradients = {name: torch.randn_like(param, device='cpu').clone() for name, param in model.named_parameters() if param.requires_grad}
+
+            elif args.growth_data_mode == "single":
+                x, labels = next(iter(train_data))
+                x, labels = x[0].unsqueeze(0).repeat(2, 1, 1, 1).to(device), labels[0].unsqueeze(0).repeat(2).to(device)  # Duplicate the sample to create a pseudo-batch
                 log_probs = model(x)
                 loss = criterion(log_probs, labels)
                 loss.backward()
-
-            gradients = {name: param.grad.data.cpu().clone() for name, param in model.named_parameters() if param.requires_grad}
-            model.zero_grad()
+                gradients = {name: param.grad.data.cpu().clone() for name, param in model.named_parameters() if param.requires_grad}
+                model.zero_grad()
+            else:
+                for batch_idx, (x, labels) in enumerate(train_data):
+                    x, labels = x.to(device), labels.to(device)
+                    log_probs = model(x)
+                    loss = criterion(log_probs, labels)
+                    loss.backward()
+                    if args.growth_data_mode == "batch":
+                        break
+                gradients = {name: param.grad.data.cpu().clone() for name, param in model.named_parameters() if param.requires_grad}
+                model.zero_grad()
 
             # pruning and growing
             model.adjust_mask_dict(gradients, t=round_idx, T_end=args.T_end, alpha=args.adjust_alpha)
             model.apply_mask()
 
-            # train
-            epoch_loss = []
-            for epoch in range(args.epochs):
-                batch_loss = []
-                for batch_idx, (x, labels) in enumerate(train_data):
-                    x, labels = x.to(device), labels.to(device)
-                    model.zero_grad()
-                    log_probs = model(x)
-                    loss = criterion(log_probs, labels)
-                    loss.backward()
-                    # self.model.apply_mask_gradients()  # apply pruning mask
+        for epoch in range(first_epochs, args.epochs):
+            batch_loss = []
+            for batch_idx, (x, labels) in enumerate(train_data):
+                x, labels = x.to(device), labels.to(device)
+                model.zero_grad()
+                log_probs = model(x)
+                loss = criterion(log_probs, labels)
+                loss.backward()
+                optimizer.step()
+                batch_loss.append(loss.item())
+            epoch_loss.append(sum(batch_loss) / len(batch_loss))
+            logging.info('Client Index = {}\tEpoch: {}\tLoss: {:.6f}'.format(self.id, epoch, sum(epoch_loss) / len(epoch_loss)))
 
-                    # Uncommet this following line to avoid nan loss
-                    # torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
-
-                    optimizer.step()
-                    # logging.info('Update Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                    #     epoch, (batch_idx + 1) * args.batch_size, len(train_data) * args.batch_size,
-                    #            100. * (batch_idx + 1) / len(train_data), loss.item()))
-
-                    batch_loss.append(loss.item())
-                epoch_loss.append(sum(batch_loss) / len(batch_loss))
-                logging.info('Client Index = {}\tEpoch: {}\tLoss: {:.6f}'.format(self.id, epoch,
-                                                                                 sum(epoch_loss) / len(epoch_loss)))
-
-            return model.mask_dict
+        return model.mask_dict
 
     def test(self, test_data, device, args):
         model = self.model
@@ -134,4 +140,3 @@ class MyModelTrainer(ModelTrainer):
 
     def test_on_the_server(self, train_data_local_dict, test_data_local_dict, device, args=None) -> bool:
         return False
-    
