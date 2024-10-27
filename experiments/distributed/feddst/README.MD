@@ -1,12 +1,13 @@
 
 ## Quick Start
 ```
-CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_feddst_distributed_pytorch.sh 10 10 resnet18 500 2 64 0.01 cifar10 0.5 0.1 3 300 128 10
+CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_feddst_distributed_pytorch.sh resnet18 cifar10 100 10 500 5 0.1 0.1 --delta_T 10 --T_end 300 --num_eval 128 --frequency_of_the_test 10
 ```
 
 ## Usage
+[$\cdot$] is mandatory arguments, {$\cdot$} is the optional arguments.
 ```
-CUDA_VISIBLE_DEVICES=[gpus] sh run_feddst_distributed_pytorch.sh [client_num_in_total] [client_num_per_round] [model] [comm_round] [epochs] [batch_size] [initial_lr] [dataset] [partition_alpha] [target_density] [delta_T] [T_end] [num_eval] [frequency_of_the_test]
+CUDA_VISIBLE_DEVICES=[gpus] sh run_feddst_distributed_pytorch.sh [model] [dataset] [client_num_in_total] [client_num_per_round]  [comm_round] [epochs] [batch_size] [initial_lr] [target_density]  {--delta_T , --T_end, --partition_alpha, --num_eval, --frequency_of_the_test}
 ```
 
 where
@@ -21,9 +22,9 @@ where
 [batch_size] is the batch size.
 [initial_lr] is the initial learning rate.
 [dataset] is the name of the dataset.
-[partition_alpha] refers to the partition alpha, higher partition alpha makes lower degree of data heterogeneity
-[delta_T] is the interval rounds between two adjustment round.
-[T_end] is the end round number for adjustment round.
-[num_eval] is the number data samples for validation, -1 means using the whole testing dataset.
-[frequency_of_the_test] the frequency to test/validate the performance during the training, using num_eval data samples
+{--delta_T} is the interval rounds between two adjustment round.
+{--T_end} is the end round number for adjustment round.
+{--partition_alpha} refers to the partition alpha, higher partition alpha makes lower degree of data heterogeneity
+{--num_eval}is the number data samples for validation, -1 means using the whole testing dataset.
+{--frequency_of_the_test} the frequency to test/validate the performance during the training, using num_eval data samples
 ```
