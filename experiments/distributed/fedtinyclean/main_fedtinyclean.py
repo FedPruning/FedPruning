@@ -51,7 +51,7 @@ def add_args(parser):
     parser.add_argument("--client_num_per_round", type=int, default=10, metavar="NN", help="number of workers")
 
     parser.add_argument(
-        "--batch_size", type=int, default=128, metavar="N", help="input batch size for training (default: 64)"
+        "--batch_size", type=int, default=64, metavar="N", help="input batch size for training (default: 64)"
     )
 
     parser.add_argument(
@@ -111,7 +111,9 @@ def add_args(parser):
 
     parser.add_argument("--data_dir", type=str, default=None, help="data directory")
 
-    parser.add_argument("--client_optimizer", type=str, default="adam", help="SGD with momentum; adam")
+    parser.add_argument("--client_optimizer", type=str, default="sgd", help="SGD with momentum; adam")
+
+    parser.add_argument("--growth_data_mode", type=str, default="batch", help=" the number of data samples used for parameter growth, option are [ 'random', 'single', 'batch', 'entire']" )
 
     args = parser.parse_args()
     return args
