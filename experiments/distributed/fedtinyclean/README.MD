@@ -22,9 +22,9 @@ where
 [batch_size] is the batch size.
 [initial_lr] is the initial learning rate.
 [dataset] is the name of the dataset.
-[delta_T] is the interval rounds between two adjustment round.
-[T_end] is the end round number for adjustment round.
-[partition_alpha] refers to the partition alpha, higher partition alpha makes lower degree of data heterogeneity
-[num_eval] is the number data samples for validation, -1 means using the whole testing dataset.
-[frequency_of_the_test] the frequency to test/validate the performance during the training, using num_eval data samples
+{--delta_T} is the interval rounds between two adjustment round.
+{--T_end} is the end round number for adjustment round.
+{--partition_alpha} refers to the partition alpha, higher partition alpha makes lower degree of data heterogeneity
+{--num_eval}is the number data samples for validation, -1 means using the whole testing dataset.
+{--frequency_of_the_test} the frequency to test/validate the performance during the training, using num_eval data samples
 ```
