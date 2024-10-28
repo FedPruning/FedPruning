@@ -115,7 +115,7 @@ class SparseModel(nn.Module):
         layer_density_dict = generate_layer_density_dict(self.num_elements_dict, self.num_overall_elements,self.sparse_layer_set, self.target_density, layer_density_strategy)
         model_mask = pruning(self.model, layer_density_dict, pruning_strategy)
         return layer_density_dict, model_mask
-    
+
     def parameters(self, **kwargs):
         return self.model.parameters(**kwargs)
 

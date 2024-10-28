@@ -93,23 +93,10 @@ class FedDSTAggregator(object):
         return averaged_params
 
     def aggregate_mask(self):
-        start_time = time.time()
-        mask_list = []
-
-        for idx in range(self.worker_num):
-            mask_list.append(self.mask_dict[idx])
-
-        logging.info("len of self.mask_dict[idx] = " + str(len(self.mask_dict)))
-
-        # if a value of a key in a client mask is 1, then the value of the key in aggr_mask will be 1
-        aggr_mask = mask_list[0]
-        for k in aggr_mask.keys():
-            for i in range(0, len(mask_list)):
-                local_mask = mask_list[i]
-                aggr_mask[k][local_mask[k] == 1] = 1
-
-        end_time = time.time()
-        logging.info("aggregate time cost: %d" % (end_time - start_time))
+        aggr_mask = self.mask_dict[0]
+        for idx in range(1, self.worker_num):
+            for k, v in self.mask_dict[idx].items():
+                aggr_mask[k] = torch.logical_or(aggr_mask[k].to(self.device),v.to(self.device)).float()
         return aggr_mask
 
     def client_sampling(self, round_idx, client_num_in_total, client_num_per_round):
