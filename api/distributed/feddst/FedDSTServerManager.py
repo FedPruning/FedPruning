@@ -4,7 +4,7 @@ import sys
 
 from .message_define import MyMessage
 from .utils import transform_tensor_to_list, post_complete_message_to_sweep_process
-from ...pruning.init_scheme import generate_layer_density_dict
+from api.pruning.init_scheme import generate_layer_density_dict, pruning
 import torch
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "../../../")))
@@ -94,14 +94,8 @@ class FedDSTServerManager(ServerManager):
                 layer_density_dict = generate_layer_density_dict(model.num_elements_dict, model.num_overall_elements,
                                                                  model.sparse_layer_set, model.target_density,
                                                                  layer_density_strategy)
-                for name, param in self.aggregator.trainer.model.named_parameters():
-                    if name in global_mask:
-                        active_num = (global_mask[name] == 1).int().sum().item()
-                        num_remove = active_num - int(active_num * layer_density_dict[name])
-                        active_indices = (global_mask[name].view(-1) == 1).nonzero(as_tuple=False).view(-1).cpu()
-                        _, prune_indices = torch.topk(torch.abs(param.data.view(-1)[active_indices]), num_remove, largest=False)
-                        global_mask[name].view(-1)[active_indices[prune_indices.cpu()]] = 0
-                model.mask_dict = global_mask
+                new_global_mask = pruning(model, layer_density_dict, pruning_strategy, mask_dict=global_mask)
+                model.mask_dict = new_global_mask
                 model.to(self.aggregator.device)
                 model.apply_mask()
                 
