@@ -84,17 +84,13 @@ class FedDSTServerManager(ServerManager):
         logging.info("b_all_received = " + str(b_all_received))
         if b_all_received:
             global_model_params = self.aggregator.aggregate()
+            logging.info(f"current mode for server is {self.mode}, the round is {self.round_idx}")
             if self.mode in [2, 3]:
                 model = self.aggregator.trainer.model
                 global_mask = self.aggregator.aggregate_mask()
-                # update the global model which is cached at the server side
-                self.aggregator.trainer.set_model_params(global_model_params)
-                # prune to reach density
+                # # prune to reach density
                 layer_density_strategy, pruning_strategy = model.strategy.split("_")
-                layer_density_dict = generate_layer_density_dict(model.num_elements_dict, model.num_overall_elements,
-                                                                 model.sparse_layer_set, model.target_density,
-                                                                 layer_density_strategy)
-                new_global_mask = pruning(model, layer_density_dict, pruning_strategy, mask_dict=global_mask)
+                new_global_mask = pruning(model, model.layer_density_dict, pruning_strategy, mask_dict=global_mask)
                 model.mask_dict = new_global_mask
                 model.to(self.aggregator.device)
                 model.apply_mask()

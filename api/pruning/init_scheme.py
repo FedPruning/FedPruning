@@ -39,6 +39,8 @@ def pruning(model, layer_density_dict, pruning_strategy, mask_dict=None):
     if mask_dict is None:
         mask_dict = {}
 
+    new_mask_dict = {}
+
     for name, weight in  model.named_parameters():
         if name in layer_density_dict:
             density = layer_density_dict[name]
@@ -52,14 +54,14 @@ def pruning(model, layer_density_dict, pruning_strategy, mask_dict=None):
                 old_mask = mask_dict[name]
 
             if pruning_strategy in ["mag", "magnitude"]:
-                mask_dict[name] = magnitude_prune(weight, old_mask, num_elements, density)
+                new_mask_dict[name] = magnitude_prune(weight, old_mask, num_elements, density)
             elif pruning_strategy in ["random"]:
-                mask_dict[name] =  random_prune(old_mask, num_elements, density)
+                new_mask_dict[name] =  random_prune(old_mask, num_elements, density)
             elif pruning_strategy in ["structure-mag"]:
                 pass
             else:
                 raise Exception(f"pruning strategy {pruning_strategy} is not supported")
-    return mask_dict
+    return new_mask_dict
 
 def magnitude_prune(weight, old_mask, num_elements, density):
     weight = weight * old_mask
@@ -67,7 +69,7 @@ def magnitude_prune(weight, old_mask, num_elements, density):
     
     assert old_mask.sum() >= num_remain
 
-    x, idx = torch.sort(torch.abs(weight.data.view(-1)))
+    x, idx = torch.sort(torch.abs(weight.data.view(-1)), descending=True)
     new_mask = torch.zeros_like( old_mask, dtype=old_mask.data.dtype, requires_grad=False )
     new_mask.data.view(-1)[idx[:num_remain]] = 1.0
     return new_mask
