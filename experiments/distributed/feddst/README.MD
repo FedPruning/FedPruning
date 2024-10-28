@@ -7,21 +7,21 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_feddst_distributed_pytorch.sh resnet18 cifar
 ## Usage
 [$\cdot$] is mandatory arguments, {$\cdot$} is the optional arguments.
 ```
-CUDA_VISIBLE_DEVICES=[gpus] sh run_feddst_distributed_pytorch.sh [model] [dataset] [client_num_in_total] [client_num_per_round]  [comm_round] [epochs] [batch_size] [initial_lr] [target_density]  {--delta_T , --T_end, --partition_alpha, --num_eval, --frequency_of_the_test}
+CUDA_VISIBLE_DEVICES=[gpus] sh run_feddst_distributed_pytorch.sh [model] [dataset] [client_num_in_total] [client_num_per_round]  [comm_round] [epochs] [target_density] [initial_lr]  {--delta_T , --T_end, --partition_alpha, --num_eval, --frequency_of_the_test}
 ```
 
 where
 
 ```
 [gpus] specifies which GPUs to use.
+[model] is the name of the model.
+[dataset] is the name of the dataset.
 [client_num_in_total] is the total number of clients.
 [client_num_per_round] is the number of clients selected per round.
-[model] is the name of the model.
 [comm_round] is the number of communication rounds.
 [epochs] is the number of local epochs.
-[batch_size] is the batch size.
+[target_density] is the target density for the sparse model.
 [initial_lr] is the initial learning rate.
-[dataset] is the name of the dataset.
 {--delta_T} is the interval rounds between two adjustment round.
 {--T_end} is the end round number for adjustment round.
 {--partition_alpha} refers to the partition alpha, higher partition alpha makes lower degree of data heterogeneity
