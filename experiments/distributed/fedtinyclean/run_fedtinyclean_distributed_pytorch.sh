@@ -14,7 +14,8 @@ echo $PROCESS_NUM
 
 hostname > mpi_host_file
 
-mpirun -np $PROCESS_NUM -hostfile ./mpi_host_file python3 ./main_fedtinyclean.py \
+# Initialize the command with mandatory arguments
+command="mpirun -np $PROCESS_NUM -hostfile ./mpi_host_file python3 ./main_fedtinyclean.py \
   --gpu_mapping_file "gpu_mapping.yaml" \
   --gpu_mapping_key "mapping_default" \
   --model $MODEL \
@@ -24,9 +25,9 @@ mpirun -np $PROCESS_NUM -hostfile ./mpi_host_file python3 ./main_fedtinyclean.py
   --comm_round $ROUND \
   --epochs $EPOCH \
   --lr $LR \
-  --target_density $DENSITY \
+  --target_density $DENSITY"
 
-# Shift the first 9 arguments
+# Shift the first 8 arguments
 shift 8
 
 # Append optional arguments only if they are provided
