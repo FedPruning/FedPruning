@@ -35,39 +35,54 @@ def generate_layer_density_dict(num_elements_dict, num_overall_elements, sparse_
     return layer_density_dict
 
 
-def pruning(model, layer_density_dict, pruning_strategy):
-    mask_dict = {}
+def pruning(model, layer_density_dict, pruning_strategy, mask_dict=None):
+    if mask_dict is None:
+        mask_dict = {}
+
     for name, weight in  model.named_parameters():
         if name in layer_density_dict:
             density = layer_density_dict[name]
-            num_elements = weight.numel()
-            mask = torch.zeros_like(
-                weight, dtype=weight.data.dtype, requires_grad=False
-            )
+            num_elements = weight.numel() # the total number for elements
+
+            if name not in mask_dict:
+                old_mask = torch.ones_like(
+                    weight, dtype=weight.data.dtype, requires_grad=False
+                )
+            else:
+                old_mask = mask_dict[name]
 
             if pruning_strategy in ["mag", "magnitude"]:
-                mask_dict[name] = magnitude_prune(weight, mask, num_elements, density)
+                mask_dict[name] = magnitude_prune(weight, old_mask, num_elements, density)
             elif pruning_strategy in ["random"]:
-                mask_dict[name] =  random_prune(mask, num_elements, density)
+                mask_dict[name] =  random_prune(old_mask, num_elements, density)
             elif pruning_strategy in ["structure-mag"]:
                 pass
             else:
                 raise Exception(f"pruning strategy {pruning_strategy} is not supported")
     return mask_dict
 
-def magnitude_prune(weight, mask, num_elements, density):
-    num_remove = num_elements - int(num_elements * density)
+def magnitude_prune(weight, old_mask, num_elements, density):
+    weight = weight * old_mask
+    num_remain = int(num_elements * density)
+    
+    assert old_mask.sum() >= num_remain
 
     x, idx = torch.sort(torch.abs(weight.data.view(-1)))
-    mask.data.view(-1)[idx[num_remove:]] = 1.0
-    return mask
+    new_mask = torch.zeros_like( old_mask, dtype=old_mask.data.dtype, requires_grad=False )
+    new_mask.data.view(-1)[idx[:num_remain]] = 1.0
+    return new_mask
 
-def random_prune(mask, num_elements, density):
-    num_remove = num_elements - int(num_elements * density)
-    idx = list(range(num_elements))
+def random_prune(old_mask, num_elements, density):
+    weight = weight * old_mask
+    num_remain = int(num_elements * density)
+    current_num_element = old_mask.sum()
+    assert current_num_element >= num_remain
+
+    idx = (old_mask.data.view(-1) == 1).nonzero(as_tuple=True)[0].tolist()
     random.shuffle(idx)
-    mask.data.view(-1)[idx[num_remove:]] = 1.0
-    return mask
+    new_mask = torch.zeros_like( old_mask, dtype=old_mask.data.dtype, requires_grad=False )
+    new_mask.data.view(-1)[idx[:num_remain]] = 1.0
+    return new_mask
 
 
 def f_decay(t, alpha, T_end):
@@ -121,8 +136,3 @@ def sparse_update_step(model, gradients, mask_dict, t, T_end, alpha):
             _, grow_indices = torch.topk(grad_inactive, k, sorted=False)
             mask_dict[name].view(-1)[inactive_indices[grow_indices.cpu()]] = 1
     return mask_dict
-
-
-
-
-
