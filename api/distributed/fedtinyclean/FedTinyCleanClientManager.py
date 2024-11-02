@@ -67,7 +67,7 @@ class FedTinyCleanClientManager(ClientManager):
         self.trainer.update_model(model_params)
         self.trainer.update_dataset(int(client_index))
         self.__train()
-        if self.round_idx == self.num_rounds - 1:
+        if self.round_idx == self.num_rounds:
             # post_complete_message_to_sweep_process(self.args)
             self.finish()
 
