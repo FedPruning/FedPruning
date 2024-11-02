@@ -62,7 +62,7 @@ def add_args(parser):
 
     parser.add_argument("--epochs", type=int, default=5, metavar="EP", help="how many epochs will be trained locally")
 
-    parser.add_argument("--A_epochs", type=int, default=2, metavar="EP", help="how many epochs will be trained before pruning and growing ")
+    parser.add_argument("--A_epochs", type=int, default=None, metavar="EP", help="how many epochs will be trained before pruning and growing ")
 
     parser.add_argument("--comm_round", type=int, default=10, help="how many round of communications we shoud use")
 
