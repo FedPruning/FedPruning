@@ -4,4 +4,4 @@ data/*
 *wandb*
 *.DS_Store
 *mpi_host_file
-*api/model/cv/pretrained
+api/model/cv/pretrained
