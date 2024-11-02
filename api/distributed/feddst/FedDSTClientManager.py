@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+import time 
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "../../../")))
 
@@ -67,8 +68,9 @@ class FedDSTClientManager(ClientManager):
         self.trainer.update_model(model_params)
         self.trainer.update_dataset(int(client_index))
         self.__train()
-        if self.round_idx == self.num_rounds - 1:
+        if self.round_idx == self.num_rounds:
             # post_complete_message_to_sweep_process(self.args)
+            time.sleep(60)
             self.finish()
 
     def send_model_to_server(self, receive_id, weights, local_sample_num, masks=None):
