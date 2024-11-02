@@ -43,7 +43,8 @@ class MyModelTrainer(ModelTrainer):
         if mode in [0, 1]:
             first_epochs = args.epochs
         else:
-            first_epochs = min(args.epochs, args.A_epochs)
+            A_epochs = args.epochs // 2 if args.A_epochs is None else args.A_epochs
+            first_epochs = min(args.epochs, A_epochs)
 
         for epoch in range(first_epochs):
             batch_loss = []
