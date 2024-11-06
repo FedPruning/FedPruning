@@ -20,9 +20,9 @@ class FedUSTTrainer(object):
         self.forgotten_set_local_dict = {}
         for k, loader in train_data_local_dict.items():
             self.forgotten_set_local_dict[k] = []
-            for batch_idx, (x, labels) in enumerate(loader):
+            for batch_idx, (x, labels, index) in enumerate(loader):
                 for i in range(x.size(0)):
-                    self.forgotten_set_local_dict[k].append((batch_idx, i))
+                    self.forgotten_set_local_dict[k].append(index[i].item())
         self.forgotten_local = None
 
         self.device = device
@@ -36,17 +36,17 @@ class FedUSTTrainer(object):
         self.train_local = self.train_data_local_dict[client_index]
         self.forgotten_local = self.forgotten_set_local_dict[client_index]
         self.local_sample_number = self.train_data_local_num_dict[client_index]
-        # self.test_local = self.test_data_local_dict[client_index] # useless 
+        # self.test_local = self.test_data_local_dict[client_index] # useless
 
     def train(self, mode, round_idx = None, client_index = None):
-        masks, self.forgotten_set_local_dict[client_index] = self.trainer.train(self.train_local, self.forgotten_local, self.device, self.args, mode, round_idx)
+        masks, forgotten_set_local = self.trainer.train(self.train_local, self.forgotten_local, self.device, self.args, mode, round_idx)
         weights = self.trainer.get_model_params()
 
         # transform Tensor to list
         if self.args.is_mobile == 1:
             weights = transform_tensor_to_list(weights)
 
-        return weights, masks, self.local_sample_number
+        return weights, masks, self.local_sample_number, forgotten_set_local
 
     # def test(self):
     #     # train data
