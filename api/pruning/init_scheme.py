@@ -138,3 +138,29 @@ def sparse_update_step(model, gradients, mask_dict, t, T_end, alpha):
             _, grow_indices = torch.topk(grad_inactive, k, sorted=False)
             mask_dict[name].view(-1)[inactive_indices[grow_indices.cpu()]] = 1
     return mask_dict
+
+def sparse_pruning_step(model, mask_dict, t, T_end, alpha):
+    for name, param in model.named_parameters():
+        if name in mask_dict:
+            active_num = (mask_dict[name] == 1).int().sum().item()
+            k = int(f_decay(t, alpha, T_end) * active_num)
+            # pruning：Find the k  smallest connections among the current active connections and set them to non-active
+            active_indices = (mask_dict[name].view(-1) == 1).nonzero(as_tuple=False).view(-1).cpu()
+            _, prune_indices = torch.topk(torch.abs(param.data.view(-1)[active_indices]), k, largest=False)
+            mask_dict[name].view(-1)[active_indices[prune_indices.cpu()]] = 0
+    return mask_dict
+
+def sparse_growing_step(model, gradients, mask_dict, layer_density_dict):
+    for name, weight in model.named_parameters():
+        if name in layer_density_dict:
+            active_num = (mask_dict[name] == 1).int().sum().item()
+            density = layer_density_dict[name]
+            num_elements = weight.numel() # the total number for elements
+            num_remain = int(num_elements * density)
+            k = num_remain - active_num
+            # growing：Find the k  largest gradients connections among the currently inactive connections and set them to active
+            inactive_indices = (mask_dict[name].view(-1) == 0).nonzero(as_tuple=False).view(-1).cpu()
+            grad_inactive = gradients[name].abs().view(-1)[inactive_indices].cpu()
+            _, grow_indices = torch.topk(grad_inactive, k, sorted=False)
+            mask_dict[name].view(-1)[inactive_indices[grow_indices.cpu()]] = 1
+    return mask_dict
