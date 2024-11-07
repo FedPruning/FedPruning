@@ -109,7 +109,7 @@ class MyModelTrainer(ModelTrainer):
                     pred = model(x)
                     _, predicted = torch.max(pred, -1)
                     for i in range(predicted.size(0)):
-                        if result[index[i].item()] != predicted[i]:
+                        if index[i].item() in result and result[index[i].item()] != predicted[i]:
                             new_forgotten_set.append(index[i].item())
 
             # growing
