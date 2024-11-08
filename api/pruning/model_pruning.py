@@ -2,7 +2,6 @@ import torch
 from typing import Dict, List
 from torch import nn
 from api.pruning.init_scheme import generate_layer_density_dict, pruning, sparse_update_step, sparse_pruning_step, sparse_growing_step
-from init_scheme import generate_layer_density_dict, pruning, sparse_update_step, sparse_pruning_step, sparse_growing_step
 import warnings
 import logging
 
