@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "")))
 
 from api.distributed.utils.gpu_mapping import mapping_processes_to_gpu_device_from_yaml_file
 
-from api.data_preprocessing.cifar10.data_loader import load_partition_data_cifar10
+from api.data_preprocessing.cifar10.data_loader import load_partition_data_cifar10_ust
 from api.data_preprocessing.cifar100.data_loader import load_partition_data_cifar100
 from api.data_preprocessing.cinic10.data_loader import load_partition_data_cinic10
 
@@ -129,13 +129,13 @@ def load_data(args, dataset_name):
         args.data_dir = f"./../../../data/{dataset_name}"
 
     if dataset_name == "cifar10":
-        data_loader = load_partition_data_cifar10
+        data_loader = load_partition_data_cifar10_ust
     elif dataset_name == "cifar100":
         data_loader = load_partition_data_cifar100
     elif dataset_name == "cinic10":
         data_loader = load_partition_data_cinic10
     else:
-        data_loader = load_partition_data_cifar10
+        data_loader = load_partition_data_cifar10_ust
 
     (
         train_data_num,
