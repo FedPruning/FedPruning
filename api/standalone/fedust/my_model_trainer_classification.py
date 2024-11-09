@@ -113,21 +113,30 @@ class MyModelTrainer(ModelTrainer):
                             new_forgotten_set.append(index[i].item())
 
             # growing
-            x_tensors = []
-            y_tensors = []
-            # Collect (x, y) pairs from the old DataLoader at (batch_idx, i)
-            for batch_idx, (x, target, index) in enumerate(train_data):
-                for i in range(x.size(0)):
-                    if index[i].item() in new_forgotten_set:
-                        x_tensors.append(x[i])
-                        y_tensors.append(target[i])
+            if len(new_forgotten_set) > 0:
+                x_tensors = []
+                y_tensors = []
+                # Collect (x, y) pairs from the old DataLoader at (batch_idx, i)
+                for batch_idx, (x, target, index) in enumerate(train_data):
+                    for i in range(x.size(0)):
+                        if index[i].item() in new_forgotten_set:
+                            x_tensors.append(x[i])
+                            y_tensors.append(target[i])
 
-            selected_x = torch.stack(x_tensors).to(device)  # Shape will be (N, 2, 3, 4) if there are N pairs
-            selected_y = torch.stack(y_tensors).to(device)  # Shape will be (N, 2, 3, 4)
-            log_probs = model(selected_x)
-            loss = criterion(log_probs, selected_y)
-            loss.backward()
-            gradients = {name: param.grad.data.cpu().clone() for name, param in model.named_parameters() if param.requires_grad}
+                selected_x = torch.stack(x_tensors).to(device)
+                selected_y = torch.stack(y_tensors).to(device)
+                log_probs = model(selected_x)
+                loss = criterion(log_probs, selected_y)
+                loss.backward()
+                gradients = {name: param.grad.data.cpu().clone() for name, param in model.named_parameters() if param.requires_grad}
+            else:
+                for batch_idx, (x, labels, index) in enumerate(train_data):
+                    x, labels = x.to(device), labels.to(device)
+                    log_probs = model(x)
+                    loss = criterion(log_probs, labels)
+                    loss.backward()
+                    break
+                gradients = {name: param.grad.data.cpu().clone() for name, param in model.named_parameters() if param.requires_grad}
             model.grow_mask_dict(gradients)
             model.apply_mask()
             model.zero_grad()
