@@ -69,6 +69,7 @@ class MyModelTrainer(ModelTrainer):
             logging.info('Client Index = {}\tEpoch: {}\tLoss: {:.6f}'.format(self.id, epoch, sum(epoch_loss) / len(epoch_loss)))
 
         if mode in [2, 3]:
+            model.zero_grad()
             if args.growth_data_mode == "random":
                 gradients = {name: torch.randn_like(param, device='cpu').clone() for name, param in model.named_parameters() if param.requires_grad}
 
