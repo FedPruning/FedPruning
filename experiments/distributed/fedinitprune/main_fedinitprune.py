@@ -205,7 +205,7 @@ if __name__ == "__main__":
     # initialize the wandb machine learning experimental tracking platform (https://www.wandb.com/).
     if process_id == 0:
         wandb.init(
-            project="FedPruning",
+            project="icdcs2025",
             name="FedInitprune_"
             + args.dataset 
             + "_"
