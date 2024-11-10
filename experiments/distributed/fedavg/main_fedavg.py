@@ -105,7 +105,7 @@ def add_args(parser):
 
     parser.add_argument("--data_dir", type=str, default=None, help="data directory")
 
-    parser.add_argument("--client_optimizer", type=str, default="adam", help="SGD with momentum; adam")
+    parser.add_argument("--client_optimizer", type=str, default="sgd", help="SGD with momentum; adam")
 
     args = parser.parse_args()
     return args
