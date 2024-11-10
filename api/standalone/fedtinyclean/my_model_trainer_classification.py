@@ -63,7 +63,7 @@ class MyModelTrainer(ModelTrainer):
 
         # Collect gradients
         if mode in [2, 3]:
-            
+            model.zero_grad()
             if args.growth_data_mode == "random":
                 return {name: torch.randn_like(param, device='cpu').clone() for name, param in model.named_parameters() if param.requires_grad}
 
