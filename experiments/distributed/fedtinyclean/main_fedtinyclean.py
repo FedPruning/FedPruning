@@ -64,9 +64,9 @@ def add_args(parser):
 
     parser.add_argument("--comm_round", type=int, default=10, help="how many round of communications we shoud use")
 
-    parser.add_argument("--frequency_of_the_test", type=int, default=5, help="the frequency of the algorithms")
+    parser.add_argument("--frequency_of_the_test", type=int, default=1, help="the frequency of the algorithms")
 
-    parser.add_argument('--target_density', type=float, default=0.5,
+    parser.add_argument('--target_density', type=float, default=0.1,
                         help='pruning target density')
 
     parser.add_argument('--delta_T', type=int, default=10, help='delta t for update')
@@ -113,7 +113,7 @@ def add_args(parser):
 
     parser.add_argument("--client_optimizer", type=str, default="sgd", help="SGD with momentum; adam")
 
-    parser.add_argument("--growth_data_mode", type=str, default="batch", help=" the number of data samples used for parameter growth, option are [ 'random', 'single', 'batch', 'entire']" )
+    parser.add_argument("--growth_data_mode", type=str, default="entire", help=" the number of data samples used for parameter growth, option are [ 'random', 'single', 'batch', 'entire']" )
 
     args = parser.parse_args()
     return args
