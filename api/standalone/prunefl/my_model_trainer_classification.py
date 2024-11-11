@@ -38,8 +38,8 @@ class MyModelTrainer(ModelTrainer):
             optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, self.model.parameters()), lr=args.lr,
                                          weight_decay=args.wd, amsgrad=True)
 
-
-        gradients_squared = {name: torch.zeros_like(param, device='cpu') for name, param in model.named_parameters() if
+        if mode in [2, 3]:
+            gradients_squared = {name: torch.zeros_like(param, device='cpu') for name, param in model.named_parameters() if
                              param.requires_grad}
         # accumulated_batch_num = args.epochs*len(train_data)
 
@@ -66,15 +66,17 @@ class MyModelTrainer(ModelTrainer):
                 batch_loss.append(loss.item())
 
                 # Calculate the squared gradient of the current batch and add it to gradients_squared
-                for name, param in model.named_parameters():
-                    if param.requires_grad:
-                        gradients_squared[name] += (param.grad.data.cpu().clone()/x.size(0)) ** 2
+                if mode in [2,3]:
+                    for name, param in model.named_parameters():
+                        if param.requires_grad:
+                            gradients_squared[name] += (param.grad.data.cpu().clone()/x.size(0)) ** 2
             epoch_loss.append(sum(batch_loss) / len(batch_loss))
             logging.info('Client Index = {}\tEpoch: {}\tLoss: {:.6f}'.format(self.id, epoch, sum(epoch_loss) / len(epoch_loss)))
 
         # Collect gradients
         model.zero_grad()
-        return gradients_squared
+        if mode in [2,3]:
+            return gradients_squared
 
 
     def test(self, test_data, device, args):

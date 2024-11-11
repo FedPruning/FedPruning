@@ -35,8 +35,9 @@ class PruneFLAggregator(object):
         key is client index
         """
         self.model_dict = dict()  # Store the model uploaded by each client
-        self.acc_gradient_squared_dict = dict()  # Store the accumulated squared gradient uploaded by each client
-        self.train_rounds_dict = dict()
+        # self.acc_gradient_squared_dict = dict()  # Store the accumulated squared gradient uploaded by each client
+        # self.train_rounds_dict = dict()
+        self.gradient_squared_dict = dict()
         self.sample_num_dict = dict()  # Store the number of train data for each client, do not need to reset
         """
         key is worker index
@@ -61,13 +62,8 @@ class PruneFLAggregator(object):
         logging.info(f"add_gradient_squared. worker index={worker_index} client_index = {client_index}")
         # self.gradient_squared_dict[index] = gradient_squared
 
-        if client_index not in self.acc_gradient_squared_dict.keys():
-            self.acc_gradient_squared_dict[client_index] = gradient_squared
-            self.train_rounds_dict[client_index] = 1
-        else:
-            for name in self.acc_gradient_squared_dict[client_index].keys():
-                self.acc_gradient_squared_dict[client_index][name] = self.acc_gradient_squared_dict[client_index][name] + gradient_squared[name]
-            self.train_rounds_dict[client_index] += 1
+        self.gradient_squared_dict[client_index] = gradient_squared
+
 
     def check_whether_all_receive(self):
         """
@@ -119,10 +115,8 @@ class PruneFLAggregator(object):
         gradient_squared_list = []
         training_num = 0
 
-        for idx in self.acc_gradient_squared_dict.keys():
-            mean_gradient_squared = {name: value / self.train_rounds_dict[idx] for name, value in
-                                        self.acc_gradient_squared_dict[idx].items()}
-            gradient_squared_list.append((self.sample_num_dict[idx], mean_gradient_squared))
+        for idx in self.gradient_squared_dict.keys():
+            gradient_squared_list.append((self.sample_num_dict[idx], self.gradient_squared_dict[idx]))
             training_num += self.sample_num_dict[idx]
 
         # logging.info("################aggregate: %d" % len(gradient_squared_list))
@@ -137,8 +131,8 @@ class PruneFLAggregator(object):
                 else:
                     averaged_grad_squared[k] += local_grad_squared[k].to(self.device) * w
 
-        self.acc_gradient_squared_dict = dict()  # reset
-        self.train_rounds_dict = dict()
+        self.gradient_squared_dict = dict()  # reset
+        # self.train_rounds_dict = dict()
         end_time = time.time()
         logging.info("aggregate time cost: %d" % (end_time - start_time))
         return averaged_grad_squared

@@ -85,8 +85,9 @@ class PruneFLServerManager(ServerManager):
         local_sample_number = msg_params.get(MyMessage.MSG_ARG_KEY_NUM_SAMPLES)
 
         client_index = msg_params.get(MyMessage.MSG_ARG_KEY_CLIENT_INDEX)
-        gradient_squared = msg_params.get(MyMessage.MSG_ARG_KEY_MODEL_GRADIENT_SQUARED)
-        self.aggregator.add_local_trained_gradient_squared(sender_id - 1, client_index, gradient_squared)
+        if self.mode in [2, 3]:
+            gradient_squared = msg_params.get(MyMessage.MSG_ARG_KEY_MODEL_GRADIENT_SQUARED)
+            self.aggregator.add_local_trained_gradient_squared(sender_id - 1, client_index, gradient_squared)
             
         self.aggregator.add_local_trained_result(sender_id - 1, client_index, model_params, local_sample_number)
 

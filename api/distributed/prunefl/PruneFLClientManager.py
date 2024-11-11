@@ -89,7 +89,8 @@ class PruneFLClientManager(ClientManager):
         message = Message(MyMessage.MSG_TYPE_C2S_SEND_MODEL_TO_SERVER, self.get_sender_id(), receive_id)
         message.add_params(MyMessage.MSG_ARG_KEY_MODEL_PARAMS, weights)
         message.add_params(MyMessage.MSG_ARG_KEY_CLIENT_INDEX, self.current_client_index)
-        message.add_params(MyMessage.MSG_ARG_KEY_MODEL_GRADIENT_SQUARED, gradient_squared)
+        if gradient_squared:
+            message.add_params(MyMessage.MSG_ARG_KEY_MODEL_GRADIENT_SQUARED, gradient_squared)
         # message.add_params(MyMessage.MSG_ARG_KEY_MODEL_GRADIENT, gradient)
         message.add_params(MyMessage.MSG_ARG_KEY_NUM_SAMPLES, local_sample_num)
         self.send_message(message)
@@ -99,7 +100,10 @@ class PruneFLClientManager(ClientManager):
         logging.info("#######training########### round_id = %d" % self.round_idx)
         weights, gradient_squared, local_sample_num = self.trainer.train(mode = self.mode, round_idx=self.round_idx)
 
-        self.send_model_to_server(0, weights, local_sample_num, gradient_squared)
+        if self.mode in [2,3]:
+            self.send_model_to_server(0, weights, local_sample_num, gradient_squared)
+        else:
+            self.send_model_to_server(0, weights, local_sample_num)
         """
         if self.mode in [2, 3]:
             gradient_squared_divided = {name: value / self.train_rounds for name, value in self.acc_gradient_squared.items()}
