@@ -1,7 +1,7 @@
 import torch
 from typing import Dict, List
 from torch import nn
-from api.pruning.init_scheme import generate_layer_density_dict, pruning, sparse_update_step
+from api.pruning.init_scheme import generate_layer_density_dict, pruning, sparse_update_step, sparse_pruning_step, sparse_growing_step
 import warnings
 import logging
 
@@ -160,6 +160,12 @@ class SparseModel(nn.Module):
     
     def adjust_mask_dict(self, gradients, t, T_end, alpha):
         self.mask_dict = sparse_update_step(self.model, gradients, self.mask_dict, t, T_end, alpha)
+
+    def prune_mask_dict(self, t, T_end, alpha):
+        self.mask_dict = sparse_pruning_step(self.model, self.mask_dict, t, T_end, alpha)
+
+    def grow_mask_dict(self, gradients):
+        self.mask_dict = sparse_growing_step(self.model, gradients, self.mask_dict, self.layer_density_dict)
 
 ## TODO
 # actual density

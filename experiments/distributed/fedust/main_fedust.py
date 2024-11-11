@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "")))
 
 from api.distributed.utils.gpu_mapping import mapping_processes_to_gpu_device_from_yaml_file
 
-from api.data_preprocessing.cifar10.data_loader import load_partition_data_cifar10
+from api.data_preprocessing.cifar10.data_loader import load_partition_data_cifar10_ust
 from api.data_preprocessing.cifar100.data_loader import load_partition_data_cifar100
 from api.data_preprocessing.cinic10.data_loader import load_partition_data_cinic10
 
@@ -26,7 +26,7 @@ from api.model.cv.resnet_gn import resnet18 as resnet18_gn
 from api.model.cv.mobilenet import mobilenet
 from api.model.cv.resnet import resnet18, resnet56
 
-from api.distributed.fedtinyclean.FedTinyCleanAPI import FedML_init, FedML_FedTinyClean_distributed
+from api.distributed.fedust.FedUSTAPI import FedML_init, FedML_FedUST_distributed
 from api.pruning.model_pruning import SparseModel
 
 
@@ -62,11 +62,13 @@ def add_args(parser):
 
     parser.add_argument("--epochs", type=int, default=5, metavar="EP", help="how many epochs will be trained locally")
 
+    parser.add_argument("--A_epochs", type=int, default=2, metavar="EP", help="how many epochs will be trained before pruning and growing ")
+
     parser.add_argument("--comm_round", type=int, default=10, help="how many round of communications we shoud use")
 
-    parser.add_argument("--frequency_of_the_test", type=int, default=1, help="the frequency of the algorithms")
+    parser.add_argument("--frequency_of_the_test", type=int, default=5, help="the frequency of the algorithms")
 
-    parser.add_argument('--target_density', type=float, default=0.1,
+    parser.add_argument('--target_density', type=float, default=0.5,
                         help='pruning target density')
 
     parser.add_argument('--delta_T', type=int, default=10, help='delta t for update')
@@ -74,6 +76,8 @@ def add_args(parser):
     parser.add_argument('--T_end', type=int, default=100, help='end of time for update')
 
     parser.add_argument("--adjust_alpha", type=float, default=0.2, help='the ratio of num elements for adjustments')
+
+    parser.add_argument("--forgotten_sigma", type=float, default=0.2, help='sigma for forgotten set')
 
     # Following arguments are seldom changed
     parser.add_argument(
@@ -113,9 +117,9 @@ def add_args(parser):
 
     parser.add_argument("--client_optimizer", type=str, default="sgd", help="SGD with momentum; adam")
 
-    parser.add_argument("--growth_data_mode", type=str, default="entire", help=" the number of data samples used for parameter growth, option are [ 'random', 'single', 'batch', 'entire']" )
+    parser.add_argument("--growth_data_mode", type=str, default="batch", help=" the number of data samples used for parameter growth, option are [ 'random', 'single', 'batch', 'entire']" )
 
-    args = parser.parse_args()
+    args = parser.parse_args()  
     return args
 
 
@@ -125,13 +129,13 @@ def load_data(args, dataset_name):
         args.data_dir = f"./../../../data/{dataset_name}"
 
     if dataset_name == "cifar10":
-        data_loader = load_partition_data_cifar10
+        data_loader = load_partition_data_cifar10_ust
     elif dataset_name == "cifar100":
         data_loader = load_partition_data_cifar100
     elif dataset_name == "cinic10":
         data_loader = load_partition_data_cinic10
     else:
-        data_loader = load_partition_data_cifar10
+        data_loader = load_partition_data_cifar10_ust
 
     (
         train_data_num,
@@ -190,7 +194,7 @@ if __name__ == "__main__":
     logging.info(args)
 
     # customize the process name
-    str_process_name = "FedTiny-Clean (distributed):" + str(process_id)
+    str_process_name = "FedUST (distributed):" + str(process_id)
     setproctitle.setproctitle(str_process_name)
 
     # customize the log format
@@ -217,10 +221,10 @@ if __name__ == "__main__":
     if process_id == 0:
         wandb.init(
             project="icdcs2025",
-            name="FedTiny-Clean_"
-            + args.dataset 
+            name="FedUST_"
+            + args.dataset
             + "_"
-            + args.model 
+            + args.model
             ,
             config=args,
         )
@@ -261,17 +265,17 @@ if __name__ == "__main__":
     model = SparseModel(inner_model, target_density=args.target_density, )
 
     # start distributed training
-    FedML_FedTinyClean_distributed(
+    FedML_FedUST_distributed(
         process_id,
         worker_number,
         device,
         comm,
         model,
-        train_data_num, 
+        train_data_num,
         None, # We do net need train_data_global, so we set it as None
         test_data_global,
         train_data_local_num_dict,
-        train_data_local_dict, 
+        train_data_local_dict,
         None, # We do net need test_data_local_dict, so we set it as None
         args,
     )

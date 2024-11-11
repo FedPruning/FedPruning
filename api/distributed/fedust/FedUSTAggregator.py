@@ -9,7 +9,7 @@ import wandb
 
 from .utils import transform_list_to_tensor
 
-class FedDSTAggregator(object):
+class FedUSTAggregator(object):
 
     def __init__(self, train_global, test_global, all_train_data_num,
                  train_data_local_dict, test_data_local_dict, train_data_local_num_dict, worker_num, device,
