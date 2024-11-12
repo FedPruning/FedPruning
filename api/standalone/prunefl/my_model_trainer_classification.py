@@ -39,12 +39,12 @@ class MyModelTrainer(ModelTrainer):
                                          weight_decay=args.wd, amsgrad=True)
 
         if mode in [2, 3]:
-            gradients_squared = {name: torch.zeros_like(param, device='cpu') for name, param in model.named_parameters() if
-                             param.requires_grad}
+            gradients_squared = {name: torch.zeros_like(param, device='cpu') for name, param in model.named_parameters() if param.requires_grad}
         # accumulated_batch_num = args.epochs*len(train_data)
 
 
         epoch_loss = []
+        num_steps = 0
         for epoch in range(args.epochs):
             batch_loss = []
             for batch_idx, (x, labels) in enumerate(train_data):
@@ -64,18 +64,22 @@ class MyModelTrainer(ModelTrainer):
                 #     epoch, (batch_idx + 1) * args.batch_size, len(train_data) * args.batch_size,
                 #            100. * (batch_idx + 1) / len(train_data), loss.item()))
                 batch_loss.append(loss.item())
-
+                
                 # Calculate the squared gradient of the current batch and add it to gradients_squared
                 if mode in [2,3]:
+                    num_steps += 1
                     for name, param in model.named_parameters():
                         if param.requires_grad:
-                            gradients_squared[name] += (param.grad.data.cpu().clone()/x.size(0)) ** 2
+                            gradients_squared[name] += (param.grad.data.cpu().clone()) ** 2
             epoch_loss.append(sum(batch_loss) / len(batch_loss))
             logging.info('Client Index = {}\tEpoch: {}\tLoss: {:.6f}'.format(self.id, epoch, sum(epoch_loss) / len(epoch_loss)))
 
         # Collect gradients
         model.zero_grad()
         if mode in [2,3]:
+            for name in gradients_squared:
+                gradients_squared[name] /= num_steps
+                
             return gradients_squared
 
 
