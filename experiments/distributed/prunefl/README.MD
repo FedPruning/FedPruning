@@ -1,10 +1,12 @@
 
 ## Quick Start
 ```
-CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_prunefl_distributed_pytorch.sh resnet18 cifar10 100 10 500 5 0.1 0.1 --delta_T 10 --T_end 300 --num_eval 128 --frequency_of_the_test 10
+CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_prunefl_distributed_pytorch.sh resnet18 cifar10 100 10 200 2 0.1 0.1 --delta_T 10 --T_end 100 --num_eval 128 --frequency_of_the_test 10
 
-CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_prunefl_distributed_pytorch.sh resnet18 cifar10 10 10 50 5 0.1 0.1 --delta_T 10 --T_end 30 --num_eval 128 --frequency_of_the_test 10
+CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_prunefl_distributed_pytorch.sh resnet18 cifar10 100 10 500 5 0.1 0.1 --delta_T 10 --T_end 300 --num_eval 128 --frequency_of_the_test 10
 ```
+
+
 
 ## Usage
 [$\cdot$] is mandatory arguments, {$\cdot$} is the optional arguments.

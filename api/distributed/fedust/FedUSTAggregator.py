@@ -123,7 +123,7 @@ class FedUSTAggregator(object):
         # if self.trainer.test_on_the_server(self.train_data_local_dict, self.test_data_local_dict, self.device, self.args):
         #     return
 
-        if round_idx % self.args.frequency_of_the_test == 0 or round_idx == self.args.comm_round - 1:
+        if round_idx % self.args.frequency_of_the_test == 0 or round_idx >= self.args.comm_round - 10:
             logging.info("################test_on_server_for_all_clients : {}".format(round_idx))
             # train_num_samples = []
             # train_tot_corrects = []
@@ -157,7 +157,7 @@ class FedUSTAggregator(object):
             test_losses = []
 
             # last seven testing should be tested with full testing dataset
-            if round_idx >= (self.args.comm_round - 1 - self.args.frequency_of_the_test * 7) or self.args.num_eval == -1 :
+            if round_idx >= self.args.comm_round - 10 or self.args.num_eval == -1 :
                 metrics = self.trainer.test(self.test_global, self.device, self.args)
             else:
                 metrics = self.trainer.test(self.val_global, self.device, self.args)
