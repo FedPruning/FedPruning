@@ -26,7 +26,7 @@ from api.model.cv.resnet_gn import resnet18 as resnet18_gn
 from api.model.cv.mobilenet import mobilenet
 from api.model.cv.resnet import resnet18, resnet56
 
-from api.distributed.feddst.FedDSTAPI import FedML_init, FedML_FedDST_distributed
+from api.distributed.prunefl.PruneFLAPI import FedML_init, FedML_PruneFL_distributed
 from api.pruning.model_pruning import SparseModel
 
 
@@ -61,8 +61,6 @@ def add_args(parser):
                         help='learning rate (default: 0.001)')
 
     parser.add_argument("--epochs", type=int, default=5, metavar="EP", help="how many epochs will be trained locally")
-
-    parser.add_argument("--A_epochs", type=int, default=None, metavar="EP", help="how many epochs will be trained before pruning and growing ")
 
     parser.add_argument("--comm_round", type=int, default=10, help="how many round of communications we shoud use")
 
@@ -115,9 +113,7 @@ def add_args(parser):
 
     parser.add_argument("--client_optimizer", type=str, default="sgd", help="SGD with momentum; adam")
 
-    parser.add_argument("--growth_data_mode", type=str, default="batch", help=" the number of data samples used for parameter growth, option are [ 'random', 'single', 'batch', 'entire']" )
-
-    args = parser.parse_args()  
+    args = parser.parse_args()
     return args
 
 
@@ -136,13 +132,14 @@ def load_data(args, dataset_name):
         data_loader = load_partition_data_cifar10
 
     (
-        train_data_num,
+        train_data_num,  # length of train data
         test_data_num,
-        train_data_global,
-        test_data_global,
-        train_data_local_num_dict,
-        train_data_local_dict,
-        test_data_local_dict,
+        train_data_global,  # dataloader of all train data
+        test_data_global,  # dataloader of all test data
+        train_data_local_num_dict,  # dict key:client id  value: train data count in each client
+        train_data_local_dict,  # dict key:client id  value:dataloader of one client train data
+        test_data_local_dict,  # dict key:client id  value:dataloader of all test data,
+        # only partition train data, each client use same test data
         class_num,
     ) = data_loader(
         args.dataset,
@@ -184,6 +181,7 @@ if __name__ == "__main__":
         os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
 
     # initialize distributed computing (MPI)
+    # comm MPI communication object, usually used for communication between different processes
     comm, process_id, worker_number = FedML_init()
 
     # parse python script input parameters
@@ -192,7 +190,7 @@ if __name__ == "__main__":
     logging.info(args)
 
     # customize the process name
-    str_process_name = "FedDST (distributed):" + str(process_id)
+    str_process_name = "FedTiny-Clean (distributed):" + str(process_id)
     setproctitle.setproctitle(str_process_name)
 
     # customize the log format
@@ -219,7 +217,7 @@ if __name__ == "__main__":
     if process_id == 0:
         wandb.init(
             project="FedPruning",
-            name="FedDST_"
+            name="PruneFL_"
             + args.dataset 
             + "_"
             + args.model 
@@ -247,13 +245,17 @@ if __name__ == "__main__":
     [
         train_data_num,
         test_data_num,
-        train_data_global, # None here 
-        test_data_global,
-        train_data_local_num_dict,
-        train_data_local_dict, 
-        test_data_local_dict, 
+        train_data_global, # None here # dataloader of all train data
+        test_data_global,  # dataloader of all test data
+        train_data_local_num_dict,  # dict key:client id  value: train data count in each client
+        train_data_local_dict,  # dict key:client id  value:dataloader of one client train data
+        test_data_local_dict,  # dict key:client id  value:dataloader of all test data,
+        # only partition train data, each client use same test data
         class_num,
     ] = dataset
+
+    # data shape: torch.Size([64, 3, 32, 32]), labels shape: torch.Size([64])
+
 
     # create model.
     # Note if the model is DNN (e.g., ResNet), the training will be very slow.
@@ -263,7 +265,7 @@ if __name__ == "__main__":
     model = SparseModel(inner_model, target_density=args.target_density, )
 
     # start distributed training
-    FedML_FedDST_distributed(
+    FedML_PruneFL_distributed(
         process_id,
         worker_number,
         device,
