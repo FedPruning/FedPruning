@@ -26,3 +26,4 @@ MNN==2.3.0
 h5py
 joblib
 numpy<2.0
+urllib3==1.26.11

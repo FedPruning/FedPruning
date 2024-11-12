@@ -9,8 +9,10 @@ import wandb
 
 from .utils import transform_list_to_tensor
 
-class FedUSTAggregator(object):
-
+class PruneFLAggregator(object):
+    """
+    Responsible for aggregating model parameters and gradients from different clients
+    """
     def __init__(self, train_global, test_global, all_train_data_num,
                  train_data_local_dict, test_data_local_dict, train_data_local_num_dict, worker_num, device,
                  args, model_trainer):
@@ -26,12 +28,21 @@ class FedUSTAggregator(object):
         self.test_data_local_dict = test_data_local_dict
         self.train_data_local_num_dict = train_data_local_num_dict
 
-        self.worker_num = worker_num
+        self.worker_num = worker_num  # total number of client, not per round client
         self.device = device
-        self.model_dict = dict()
-        self.mask_dict = dict()
-        self.sample_num_dict = dict()
-        self.flag_client_model_uploaded_dict = dict()
+
+        """
+        key is client index
+        """
+        self.model_dict = dict()  # Store the model uploaded by each client
+        # self.acc_gradient_squared_dict = dict()  # Store the accumulated squared gradient uploaded by each client
+        # self.train_rounds_dict = dict()
+        self.gradient_squared_dict = dict()
+        self.sample_num_dict = dict()  # Store the number of train data for each client, do not need to reset
+        """
+        key is worker index
+        """
+        self.flag_client_model_uploaded_dict = dict()  # Whether the model of a client has been updated
         for idx in range(self.worker_num):
             self.flag_client_model_uploaded_dict[idx] = False
 
@@ -41,18 +52,23 @@ class FedUSTAggregator(object):
     def set_global_model_params(self, model_parameters):
         self.trainer.set_model_params(model_parameters)
 
-    def add_local_trained_result(self, index, model_params, sample_num):
-        logging.info("add_model. index = %d" % index)
-        self.model_dict[index] = model_params
-        self.sample_num_dict[index] = sample_num
-        self.flag_client_model_uploaded_dict[index] = True
+    def add_local_trained_result(self, worker_index, client_index, model_params, sample_num):
+        logging.info(f"add_model. worker index={worker_index} client_index = {client_index}")
+        self.model_dict[client_index] = model_params
+        self.sample_num_dict[client_index] = sample_num
+        self.flag_client_model_uploaded_dict[worker_index] = True
 
-    def add_local_trained_mask(self, index, mask):
-        logging.info("add_mask. index = %d" % index)
-        self.mask_dict[index] = mask
-        self.flag_client_model_uploaded_dict[index] = True
+    def add_local_trained_gradient_squared(self, worker_index, client_index, gradient_squared):
+        logging.info(f"add_gradient_squared. worker index={worker_index} client_index = {client_index}")
+        # self.gradient_squared_dict[index] = gradient_squared
+
+        self.gradient_squared_dict[client_index] = gradient_squared
+
 
     def check_whether_all_receive(self):
+        """
+        If all are received, set flag_client_model_uploaded_dict back to False
+        """
         logging.debug("worker_num = {}".format(self.worker_num))
         for idx in range(self.worker_num):
             if not self.flag_client_model_uploaded_dict[idx]:
@@ -66,8 +82,9 @@ class FedUSTAggregator(object):
         model_list = []
         training_num = 0
 
-        for idx in range(self.worker_num):
-            if self.args.is_mobile == 1:
+        #for idx in range(self.worker_num):
+        for idx in self.model_dict.keys():
+            if self.args.is_mobile == 1:  # true
                 self.model_dict[idx] = transform_list_to_tensor(self.model_dict[idx])
             model_list.append((self.sample_num_dict[idx], self.model_dict[idx]))
             training_num += self.sample_num_dict[idx]
@@ -88,18 +105,43 @@ class FedUSTAggregator(object):
         # update the global model which is cached at the server side
         self.set_global_model_params(averaged_params)
 
+        self.model_dict = dict() # reset
         end_time = time.time()
         logging.info("aggregate time cost: %d" % (end_time - start_time))
         return averaged_params
 
-    def aggregate_mask(self):
-        aggr_mask = self.mask_dict[0]
-        for idx in range(1, self.worker_num):
-            for k, v in self.mask_dict[idx].items():
-                aggr_mask[k] = torch.logical_or(aggr_mask[k].to(self.device),v.to(self.device)).float()
-        return aggr_mask
+    def aggregate_gradient_squared(self):
+        start_time = time.time()
+        gradient_squared_list = []
+        training_num = 0
+
+        for idx in self.gradient_squared_dict.keys():
+            gradient_squared_list.append((self.sample_num_dict[idx], self.gradient_squared_dict[idx]))
+            training_num += self.sample_num_dict[idx]
+
+        # logging.info("################aggregate: %d" % len(gradient_squared_list))
+        (num0, averaged_grad_squared) = gradient_squared_list[0]
+        # logging.info(averaged_grad.keys())
+        for k in averaged_grad_squared.keys():
+            for i in range(0, len(gradient_squared_list)):
+                local_sample_number, local_grad_squared = gradient_squared_list[i]
+                w = local_sample_number / training_num
+                if i == 0:
+                    averaged_grad_squared[k] = local_grad_squared[k].to(self.device) * w
+                else:
+                    averaged_grad_squared[k] += local_grad_squared[k].to(self.device) * w
+
+        self.gradient_squared_dict = dict()  # reset
+        # self.train_rounds_dict = dict()
+        end_time = time.time()
+        logging.info("aggregate time cost: %d" % (end_time - start_time))
+        return averaged_grad_squared
 
     def client_sampling(self, round_idx, client_num_in_total, client_num_per_round):
+        """
+        Select the client to participate in the training according to the current round.
+        If not all of them participate, select them randomly.
+        """
         if client_num_in_total == client_num_per_round:
             client_indexes = [client_index for client_index in range(client_num_in_total)]
         else:
@@ -110,6 +152,9 @@ class FedUSTAggregator(object):
         return client_indexes
 
     def _generate_validation_set(self, num_samples=10000):
+        """
+        A validation set is randomly generated from the test dataset to evaluate the model performance.
+        """
         if  num_samples != -1:
             test_data_num  = len(self.test_global.dataset)
             sample_indices = random.sample(range(test_data_num), min(num_samples, test_data_num))
@@ -156,7 +201,7 @@ class FedUSTAggregator(object):
             test_tot_corrects = []
             test_losses = []
 
-            # last seven testing should be tested with full testing dataset
+            # last five testing should be tested with full testing dataset
             if round_idx >= self.args.comm_round - 10 or self.args.num_eval == -1 :
                 metrics = self.trainer.test(self.test_global, self.device, self.args)
             else:
