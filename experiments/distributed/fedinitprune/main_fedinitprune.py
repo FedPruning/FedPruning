@@ -22,9 +22,9 @@ from api.data_preprocessing.cifar10.data_loader import load_partition_data_cifar
 from api.data_preprocessing.cifar100.data_loader import load_partition_data_cifar100
 from api.data_preprocessing.cinic10.data_loader import load_partition_data_cinic10
 
-from api.model.cv.resnet_gn import resnet18
+from api.model.cv.resnet_gn import resnet18 as resnet18_gn
 from api.model.cv.mobilenet import mobilenet
-from api.model.cv.resnet import resnet56
+from api.model.cv.resnet import resnet18, resnet56
 
 from api.distributed.fedinitprune.FedInitpruneAPI import FedML_init, FedML_FedInitprune_distributed
 from api.pruning.model_pruning import SparseModel
@@ -155,14 +155,17 @@ def load_data(args, dataset_name):
     ]
     return dataset
 
-
 def create_model(args, model_name, output_dim):
     logging.info("create_model. model_name = %s, output_dim = %s" % (model_name, output_dim))
     model = None
+    if model_name == "resnet18_gn":
+        model = resnet18_gn(num_classes=output_dim)
     if model_name == "resnet18":
-        model = resnet18(num_classes=output_dim)
-    if model_name == "resnet56":
+        model = resnet18(class_num=output_dim)
+    elif model_name == "resnet56":
         model = resnet56(class_num=output_dim)
+    elif model_name == "mobilenet":
+        model = mobilenet(class_num=output_dim)
     return model
 
 if __name__ == "__main__":
@@ -205,7 +208,7 @@ if __name__ == "__main__":
     # initialize the wandb machine learning experimental tracking platform (https://www.wandb.com/).
     if process_id == 0:
         wandb.init(
-            project="icdcs2025",
+            project="FedPruning",
             name="FedInitprune_"
             + args.dataset 
             + "_"
