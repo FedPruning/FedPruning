@@ -5,7 +5,7 @@ import torch
 import torch.utils.data as data
 import torchvision.transforms as transforms
 
-from .datasets import CIFAR10_truncated
+from .datasets import CIFAR10_truncated, CIFAR10_truncated_ust
 
 #logging.basicConfig()
 logger = logging.getLogger()
@@ -164,6 +164,8 @@ def partition_data(dataset, datadir, partition, n_nets, alpha):
 def get_dataloader(dataset, datadir, train_bs, test_bs, dataidxs=None):
     return get_dataloader_CIFAR10(datadir, train_bs, test_bs, dataidxs)
 
+def get_dataloader_ust(dataset, datadir, train_bs, test_bs, dataidxs=None):
+    return get_dataloader_CIFAR10_ust(datadir, train_bs, test_bs, dataidxs)
 
 # for local devices
 def get_dataloader_test(dataset, datadir, train_bs, test_bs, dataidxs_train, dataidxs_test):
@@ -183,6 +185,18 @@ def get_dataloader_CIFAR10(datadir, train_bs, test_bs, dataidxs=None):
 
     return train_dl, test_dl
 
+def get_dataloader_CIFAR10_ust(datadir, train_bs, test_bs, dataidxs=None):
+    dl_obj = CIFAR10_truncated_ust
+
+    transform_train, transform_test = _data_transforms_cifar10()
+
+    train_ds = dl_obj(datadir, dataidxs=dataidxs, train=True, transform=transform_train, download=True)
+    test_ds = dl_obj(datadir, train=False, transform=transform_test, download=True)
+
+    train_dl = data.DataLoader(dataset=train_ds, batch_size=train_bs, shuffle=True, drop_last=True)
+    test_dl = data.DataLoader(dataset=test_ds, batch_size=test_bs, shuffle=False, drop_last=True)
+
+    return train_dl, test_dl
 
 def get_dataloader_test_CIFAR10(datadir, train_bs, test_bs, dataidxs_train=None, dataidxs_test=None):
     dl_obj = CIFAR10_truncated
@@ -268,3 +282,45 @@ def load_partition_data_cifar10(dataset, data_dir, partition_method, partition_a
     
     return train_data_num, test_data_num, train_data_global, test_data_global, \
            data_local_num_dict, train_data_local_dict, test_data_local_dict, class_num
+
+
+def load_partition_data_cifar10_ust(dataset, data_dir, partition_method, partition_alpha, client_number, batch_size,
+                                silo_proc_num=0):
+    # a lot of value are useless,
+    # e.g. X_train, y_train, X_test, y_test
+    # a lot return are duplicated, e.g.
+    # train_data_global is useless and test_data_local_dict is same with test_data_global.
+    # in fact, it also need to be devided.
+    # Or it do not need to return.
+    X_train, y_train, X_test, y_test, net_dataidx_map, traindata_cls_counts = partition_data(dataset, data_dir,
+                                                                                             partition_method,
+                                                                                             client_number,
+                                                                                             partition_alpha)
+    class_num = len(np.unique(y_train))
+    logging.info("traindata_cls_counts = " + str(traindata_cls_counts))
+    train_data_num = sum([len(net_dataidx_map[r]) for r in range(client_number)])
+
+    train_data_global, test_data_global = get_dataloader_ust(dataset, data_dir, batch_size, batch_size)
+    logging.info("train_dl_global number = " + str(len(train_data_global)))
+    logging.info("test_dl_global number = " + str(len(test_data_global)))
+    test_data_num = len(test_data_global)
+
+    # get local dataset
+    data_local_num_dict = dict()
+    train_data_local_dict = dict()
+    test_data_local_dict = dict()
+
+    for client_idx in range(client_number):
+        dataidxs = net_dataidx_map[client_idx]
+        local_data_num = len(dataidxs)
+        data_local_num_dict[client_idx] = local_data_num
+        logging.info("client_idx = %d, local_sample_number = %d" % (client_idx, local_data_num))
+
+        train_data_local, test_data_local = get_dataloader_ust(dataset, data_dir, batch_size, batch_size, dataidxs)
+        logging.info("client_idx = %d, batch_num_train_local = %d, batch_num_test_local = %d" % (
+            client_idx, len(train_data_local), len(test_data_local)))
+        train_data_local_dict[client_idx] = train_data_local
+        test_data_local_dict[client_idx] = test_data_local
+
+    return train_data_num, test_data_num, train_data_global, test_data_global, \
+        data_local_num_dict, train_data_local_dict, test_data_local_dict, class_num

@@ -46,25 +46,25 @@ class MyModelTrainer(ModelTrainer):
             A_epochs = args.epochs // 2 if args.A_epochs is None else args.A_epochs
             first_epochs = min(args.epochs, A_epochs)
             new_forgotten_set = []
-            pred_and_statistics = {}
-            for i in forgotten_set:
-                pred_and_statistics[i] = [None, 0]
+            # pred_and_statistics = {}
+            # for i in forgotten_set:
+            #     pred_and_statistics[i] = [None, 0]
 
         for epoch in range(first_epochs):
             batch_loss = []
-            for batch_idx, (x, labels) in enumerate(train_data):
+            for batch_idx, (x, labels, index) in enumerate(train_data):
                 x, labels = x.to(device), labels.to(device)
                 model.zero_grad()
                 log_probs = model(x)
 
                 # update pred_and_statistics
-                if mode in [2, 3]:
-                    _, predicted = torch.max(log_probs, -1)
-                    for i in range(predicted.size(0)):
-                        if (batch_idx, i) in forgotten_set:
-                            if pred_and_statistics[(batch_idx, i)][0] != predicted[i] and pred_and_statistics[(batch_idx, i)][0] is not None:
-                                pred_and_statistics[(batch_idx, i)][0] = predicted[i]
-                                pred_and_statistics[(batch_idx, i)][1] += 1
+                # if mode in [2, 3]:
+                #     _, predicted = torch.max(log_probs, -1)
+                #     for i in range(predicted.size(0)):
+                #         if index[i].item() in forgotten_set:
+                #             if pred_and_statistics[index[i].item()][0] != predicted[i] and pred_and_statistics[index[i].item()][0] is not None:
+                #                 pred_and_statistics[index[i].item()][0] = predicted[i]
+                #                 pred_and_statistics[index[i].item()][1] += 1
 
                 loss = criterion(log_probs, labels)
                 loss.backward()
@@ -84,20 +84,19 @@ class MyModelTrainer(ModelTrainer):
 
         if mode in [2, 3]:
 
-            for k, v in pred_and_statistics.items():
-                if v[1] > args.forgotten_sigma * first_epochs:
-                    new_forgotten_set.append(k)
+            # for k, v in pred_and_statistics.items():
+            #     if v[1] > args.forgotten_sigma * first_epochs:
+            #         new_forgotten_set.append(k)
 
             # all predicted result
             result = {}
             with torch.no_grad():
-                for batch_idx, (x, target) in enumerate(train_data):
+                for batch_idx, (x, target, index) in enumerate(train_data):
                     x = x.to(device)
                     pred = model(x)
                     _, predicted = torch.max(pred, -1)
                     for i in range(predicted.size(0)):
-                        if (batch_idx, i) not in new_forgotten_set:
-                            result[(batch_idx, i)] = predicted[i]
+                        result[index[i].item()] = predicted[i]
 
             # pruning
             model.prune_mask_dict(t=round_idx, T_end=args.T_end, alpha=args.adjust_alpha)
@@ -105,37 +104,46 @@ class MyModelTrainer(ModelTrainer):
 
             # update new forgotten set
             with torch.no_grad():
-                for batch_idx, (x, target) in enumerate(train_data):
+                for batch_idx, (x, target, index) in enumerate(train_data):
                     x = x.to(device)
                     pred = model(x)
                     _, predicted = torch.max(pred, -1)
                     for i in range(predicted.size(0)):
-                        if (batch_idx, i) in result and result[(batch_idx, i)] != predicted[i]:
-                            new_forgotten_set.append((batch_idx, i))
+                        if index[i].item() in result and result[index[i].item()] != predicted[i]:
+                            new_forgotten_set.append(index[i].item())
 
             # growing
-            x_tensors = []
-            y_tensors = []
-            # Collect (x, y) pairs from the old DataLoader at (batch_idx, i)
-            for batch_idx, (x, target) in enumerate(train_data):
-                for i in range(x.size(0)):
-                    if (batch_idx, i) in new_forgotten_set:
-                        x_tensors.append(x[i])
-                        y_tensors.append(target[i])
+            if len(new_forgotten_set) > 0:
+                x_tensors = []
+                y_tensors = []
+                # Collect (x, y) pairs from the old DataLoader at (batch_idx, i)
+                for batch_idx, (x, target, index) in enumerate(train_data):
+                    for i in range(x.size(0)):
+                        if index[i].item() in new_forgotten_set:
+                            x_tensors.append(x[i])
+                            y_tensors.append(target[i])
 
-            selected_x = torch.stack(x_tensors).to(device)  # Shape will be (N, 2, 3, 4) if there are N pairs
-            selected_y = torch.stack(y_tensors).to(device)  # Shape will be (N, 2, 3, 4)
-            log_probs = model(selected_x)
-            loss = criterion(log_probs, selected_y)
-            loss.backward()
-            gradients = {name: param.grad.data.cpu().clone() for name, param in model.named_parameters() if param.requires_grad}
+                selected_x = torch.stack(x_tensors).to(device)
+                selected_y = torch.stack(y_tensors).to(device)
+                log_probs = model(selected_x)
+                loss = criterion(log_probs, selected_y)
+                loss.backward()
+                gradients = {name: param.grad.data.cpu().clone() for name, param in model.named_parameters() if param.requires_grad}
+            else:
+                for batch_idx, (x, labels, index) in enumerate(train_data):
+                    x, labels = x.to(device), labels.to(device)
+                    log_probs = model(x)
+                    loss = criterion(log_probs, labels)
+                    loss.backward()
+                    break
+                gradients = {name: param.grad.data.cpu().clone() for name, param in model.named_parameters() if param.requires_grad}
             model.grow_mask_dict(gradients)
             model.apply_mask()
             model.zero_grad()
 
         for epoch in range(first_epochs, args.epochs):
             batch_loss = []
-            for batch_idx, (x, labels) in enumerate(train_data):
+            for batch_idx, (x, labels, index) in enumerate(train_data):
                 x, labels = x.to(device), labels.to(device)
                 model.zero_grad()
                 log_probs = model(x)
@@ -145,6 +153,8 @@ class MyModelTrainer(ModelTrainer):
                 batch_loss.append(loss.item())
             epoch_loss.append(sum(batch_loss) / len(batch_loss))
             logging.info('Client Index = {}\tEpoch: {}\tLoss: {:.6f}'.format(self.id, epoch, sum(epoch_loss) / len(epoch_loss)))
+
+        logging.info('Client Index = {}\told_forgotten_set_len: {}\tnew_forgotten_set_len: {}'.format(self.id, len(forgotten_set), len(new_forgotten_set)))
 
         return model.mask_dict, new_forgotten_set
 
@@ -163,7 +173,7 @@ class MyModelTrainer(ModelTrainer):
         criterion = nn.CrossEntropyLoss().to(device)
 
         with torch.no_grad():
-            for batch_idx, (x, target) in enumerate(test_data):
+            for batch_idx, (x, target, index) in enumerate(test_data):
                 x = x.to(device)
                 target = target.to(device)
                 pred = model(x)

@@ -47,7 +47,7 @@ class FedUSTClientManager(ClientManager):
 
         self.trainer.update_model(global_model_params)
         self.trainer.update_dataset(int(client_index))
-        self.__train(client_index)
+        self.trainer.forgotten_set_local_dict[client_index] = self.__train(client_index)
 
     def handle_message_receive_model_from_server(self, msg_params):
         logging.info("handle_message_receive_model_from_server.")
@@ -66,7 +66,7 @@ class FedUSTClientManager(ClientManager):
             
         self.trainer.update_model(model_params)
         self.trainer.update_dataset(int(client_index))
-        self.__train(client_index)
+        self.trainer.forgotten_set_local_dict[client_index] = self.__train(client_index)
         if self.round_idx == self.num_rounds - 1:
             # post_complete_message_to_sweep_process(self.args)
             self.finish()
@@ -81,8 +81,9 @@ class FedUSTClientManager(ClientManager):
 
     def __train(self, client_index):
         logging.info("#######training########### round_id = %d" % self.round_idx)
-        weights, masks, local_sample_num = self.trainer.train(mode = self.mode, round_idx=self.round_idx, client_index=client_index)
+        weights, masks, local_sample_num, local_forgotten = self.trainer.train(mode = self.mode, round_idx=self.round_idx, client_index=client_index)
         if self.mode in [2, 3]:
             self.send_model_to_server(0, weights, local_sample_num, masks)
         else:
             self.send_model_to_server(0, weights, local_sample_num)
+        return local_forgotten
