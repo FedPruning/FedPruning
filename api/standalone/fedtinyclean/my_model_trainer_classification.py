@@ -37,9 +37,13 @@ class MyModelTrainer(ModelTrainer):
         else:
             optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, self.model.parameters()), lr=args.lr,
                                          weight_decay=args.wd, amsgrad=True)
-            
+        if mode in [2, 3]:
+            local_epochs = args.adjustment_epochs if args.adjustment_epochs is not None else args.epochs
+        else:
+            local_epochs = args.epochs
+
         epoch_loss = []
-        for epoch in range(args.epochs):
+        for epoch in range(local_epochs):
             batch_loss = []
             for batch_idx, (x, labels) in enumerate(train_data):
                 x, labels = x.to(device), labels.to(device)

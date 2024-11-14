@@ -74,6 +74,8 @@ def add_args(parser):
     parser.add_argument('--T_end', type=int, default=100, help='end of time for update')
 
     parser.add_argument("--adjust_alpha", type=float, default=0.2, help='the ratio of num elements for adjustments')
+    
+    parser.add_argument("--adjustment_epochs", type=int, default=None, help=" the number of local apoches used in model adjustment round, if it is set None, it is equal to the number of epoches for training round" )
 
     # Following arguments are seldom changed
     parser.add_argument(
