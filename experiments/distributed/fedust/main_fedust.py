@@ -62,7 +62,7 @@ def add_args(parser):
 
     parser.add_argument("--epochs", type=int, default=5, metavar="EP", help="how many epochs will be trained locally")
 
-    parser.add_argument("--A_epochs", type=int, default=2, metavar="EP", help="how many epochs will be trained before pruning and growing ")
+    parser.add_argument("--A_epochs", type=int, default=None, metavar="EP", help="how many epochs will be trained before pruning and growing ")
 
     parser.add_argument("--comm_round", type=int, default=10, help="how many round of communications we shoud use")
 
@@ -78,6 +78,8 @@ def add_args(parser):
     parser.add_argument("--adjust_alpha", type=float, default=0.2, help='the ratio of num elements for adjustments')
 
     parser.add_argument("--forgotten_sigma", type=float, default=0.2, help='sigma for forgotten set')
+
+    parser.add_argument("--adjustment_epochs", type=int, default=None, help=" the number of local apoches used in model adjustment round, if it is set None, it is equal to the number of epoches for training round" )
 
     # Following arguments are seldom changed
     parser.add_argument(
@@ -220,7 +222,7 @@ if __name__ == "__main__":
     # initialize the wandb machine learning experimental tracking platform (https://www.wandb.com/).
     if process_id == 0:
         wandb.init(
-            project="icdcs2025",
+            project="FedPruning",
             name="FedUST_"
             + args.dataset
             + "_"

@@ -39,12 +39,17 @@ class MyModelTrainer(ModelTrainer):
                                          weight_decay=args.wd, amsgrad=True)
             
         epoch_loss = []
-
-        if mode in [0, 1]:
-            first_epochs = args.epochs
+        
+        if mode in [2, 3]:
+            local_epochs = args.adjustment_epochs if args.adjustment_epochs is not None else args.epochs
         else:
-            A_epochs = args.epochs // 2 if args.A_epochs is None else args.A_epochs
-            first_epochs = min(args.epochs, A_epochs)
+            local_epochs = args.epochs
+
+        if mode in [2, 3]:
+            A_epochs = local_epochs // 2 if args.A_epochs is None else args.A_epochs
+            first_epochs = min(local_epochs, A_epochs)
+        else:
+            first_epochs = local_epochs
 
         for epoch in range(first_epochs):
             batch_loss = []
@@ -96,7 +101,7 @@ class MyModelTrainer(ModelTrainer):
             model.adjust_mask_dict(gradients, t=round_idx, T_end=args.T_end, alpha=args.adjust_alpha)
             model.apply_mask()
 
-        for epoch in range(first_epochs, args.epochs):
+        for epoch in range(first_epochs, local_epochs):
             batch_loss = []
             for batch_idx, (x, labels) in enumerate(train_data):
                 x, labels = x.to(device), labels.to(device)
