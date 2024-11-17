@@ -7,7 +7,6 @@ ROUND=$5
 EPOCH=$6
 DENSITY=$7
 LR=$8
-FORGOTTEN_SIGMA=$9
 
 PROCESS_NUM=`expr $WORKER_NUM + 1`
 echo $PROCESS_NUM
@@ -24,12 +23,11 @@ command="mpirun -np $PROCESS_NUM -hostfile ./mpi_host_file python3 ./main_fedust
   --comm_round $ROUND \
   --epochs $EPOCH \
   --lr $LR \
-  --target_density $DENSITY \
-  --forgotten_sigma $FORGOTTEN_SIGMA"
+  --target_density $DENSITY"
 
 
 # Shift the first 9 arguments
-shift 9
+shift 8
 
 # Append optional arguments only if they are provided
 for arg in "$@"; do
