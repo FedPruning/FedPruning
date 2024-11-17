@@ -39,13 +39,19 @@ class MyModelTrainer(ModelTrainer):
             
         epoch_loss = []
 
-        if mode in [0, 1]:
-            first_epochs = args.epochs
-            new_forgotten_set = forgotten_set
+        if mode in [2, 3]:
+            local_epochs = args.adjustment_epochs if args.adjustment_epochs is not None else args.epochs
         else:
-            A_epochs = args.epochs // 2 if args.A_epochs is None else args.A_epochs
-            first_epochs = min(args.epochs, A_epochs)
+            local_epochs = args.epochs
+        
+        if mode in [2, 3]:
+            A_epochs = local_epochs // 2 if args.A_epochs is None else args.A_epochs
+            first_epochs = min(local_epochs, A_epochs)
             new_forgotten_set = []
+        else:
+            first_epochs = args.epochs
+            new_forgotten_set = []
+            
             # pred_and_statistics = {}
             # for i in forgotten_set:
             #     pred_and_statistics[i] = [None, 0]
