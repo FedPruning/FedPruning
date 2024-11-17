@@ -22,9 +22,9 @@ from api.data_preprocessing.cifar10.data_loader import load_partition_data_cifar
 from api.data_preprocessing.cifar100.data_loader import load_partition_data_cifar100
 from api.data_preprocessing.cinic10.data_loader import load_partition_data_cinic10
 
-from api.model.cv.resnet_gn import resnet18
+from api.model.cv.resnet_gn import resnet18 as resnet18_gn
 from api.model.cv.mobilenet import mobilenet
-from api.model.cv.resnet import resnet56
+from api.model.cv.resnet import resnet18, resnet56
 
 from api.distributed.prunefl.PruneFLAPI import FedML_init, FedML_PruneFL_distributed
 from api.pruning.model_pruning import SparseModel
@@ -51,7 +51,7 @@ def add_args(parser):
     parser.add_argument("--client_num_per_round", type=int, default=10, metavar="NN", help="number of workers")
 
     parser.add_argument(
-        "--batch_size", type=int, default=128, metavar="N", help="input batch size for training (default: 64)"
+        "--batch_size", type=int, default=64, metavar="N", help="input batch size for training (default: 64)"
     )
 
     parser.add_argument(
@@ -74,6 +74,8 @@ def add_args(parser):
     parser.add_argument('--T_end', type=int, default=100, help='end of time for update')
 
     parser.add_argument("--adjust_alpha", type=float, default=0.2, help='the ratio of num elements for adjustments')
+
+    parser.add_argument("--adjustment_epochs", type=int, default=None, help=" the number of local apoches used in model adjustment round, if it is set None, it is equal to the number of epoches for training round" )
 
     # Following arguments are seldom changed
     parser.add_argument(
@@ -165,8 +167,10 @@ def load_data(args, dataset_name):
 def create_model(args, model_name, output_dim):
     logging.info("create_model. model_name = %s, output_dim = %s" % (model_name, output_dim))
     model = None
+    if model_name == "resnet18_gn":
+        model = resnet18_gn(num_classes=output_dim)
     if model_name == "resnet18":
-        model = resnet18(num_classes=output_dim)
+        model = resnet18(class_num=output_dim)
     elif model_name == "resnet56":
         model = resnet56(class_num=output_dim)
     elif model_name == "mobilenet":
