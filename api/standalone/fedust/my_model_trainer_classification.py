@@ -21,7 +21,7 @@ class MyModelTrainer(ModelTrainer):
 
     def train(self, train_data, forgotten_set, device, args, mode, round_idx = None):
 
-        # mode 0 :  training with mask 
+        # mode 0 : training with mask
         # mode 1 : training with mask 
         # mode 2 : training with mask, calculate mask
         # mode 3 : training with mask, calculate mask
@@ -43,57 +43,29 @@ class MyModelTrainer(ModelTrainer):
             local_epochs = args.adjustment_epochs if args.adjustment_epochs is not None else args.epochs
         else:
             local_epochs = args.epochs
-        
+
+        new_forgotten_set = []
         if mode in [2, 3]:
             A_epochs = local_epochs // 2 if args.A_epochs is None else args.A_epochs
             first_epochs = min(local_epochs, A_epochs)
-            new_forgotten_set = []
         else:
             first_epochs = args.epochs
-            new_forgotten_set = []
-            
-            # pred_and_statistics = {}
-            # for i in forgotten_set:
-            #     pred_and_statistics[i] = [None, 0]
 
+        # first training
         for epoch in range(first_epochs):
             batch_loss = []
             for batch_idx, (x, labels, index) in enumerate(train_data):
                 x, labels = x.to(device), labels.to(device)
                 model.zero_grad()
                 log_probs = model(x)
-
-                # update pred_and_statistics
-                # if mode in [2, 3]:
-                #     _, predicted = torch.max(log_probs, -1)
-                #     for i in range(predicted.size(0)):
-                #         if index[i].item() in forgotten_set:
-                #             if pred_and_statistics[index[i].item()][0] != predicted[i] and pred_and_statistics[index[i].item()][0] is not None:
-                #                 pred_and_statistics[index[i].item()][0] = predicted[i]
-                #                 pred_and_statistics[index[i].item()][1] += 1
-
                 loss = criterion(log_probs, labels)
                 loss.backward()
-                #self.model.apply_mask_gradients()  # apply pruning mask
-                
-                # Uncommet this following line to avoid nan loss
-                # torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
-
                 optimizer.step()
-                # logging.info('Update Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                #     epoch, (batch_idx + 1) * args.batch_size, len(train_data) * args.batch_size,
-                #            100. * (batch_idx + 1) / len(train_data), loss.item()))
-
                 batch_loss.append(loss.item())
             epoch_loss.append(sum(batch_loss) / len(batch_loss))
             logging.info('Client Index = {}\tEpoch: {}\tLoss: {:.6f}'.format(self.id, epoch, sum(epoch_loss) / len(epoch_loss)))
 
         if mode in [2, 3]:
-
-            # for k, v in pred_and_statistics.items():
-            #     if v[1] > args.forgotten_sigma * first_epochs:
-            #         new_forgotten_set.append(k)
-
             # all predicted result
             result = {}
             with torch.no_grad():
@@ -119,7 +91,7 @@ class MyModelTrainer(ModelTrainer):
                             new_forgotten_set.append(index[i].item())
 
             # growing
-            if len(new_forgotten_set) > 0:
+            if len(new_forgotten_set) > 1:
                 x_tensors = []
                 y_tensors = []
                 # Collect (x, y) pairs from the old DataLoader at (batch_idx, i)
@@ -135,6 +107,7 @@ class MyModelTrainer(ModelTrainer):
                 loss = criterion(log_probs, selected_y)
                 loss.backward()
                 gradients = {name: param.grad.data.cpu().clone() for name, param in model.named_parameters() if param.requires_grad}
+            # batch
             else:
                 for batch_idx, (x, labels, index) in enumerate(train_data):
                     x, labels = x.to(device), labels.to(device)
@@ -147,18 +120,31 @@ class MyModelTrainer(ModelTrainer):
             model.apply_mask()
             model.zero_grad()
 
-        for epoch in range(first_epochs, args.epochs):
-            batch_loss = []
-            for batch_idx, (x, labels, index) in enumerate(train_data):
-                x, labels = x.to(device), labels.to(device)
+        # training after adjustment
+        if args.forgotten_train == 1 and len(new_forgotten_set) > 1:
+            for epoch in range(first_epochs, args.epochs):
+                batch_loss = []
                 model.zero_grad()
-                log_probs = model(x)
-                loss = criterion(log_probs, labels)
+                log_probs = model(selected_x)
+                loss = criterion(log_probs, selected_y)
                 loss.backward()
                 optimizer.step()
                 batch_loss.append(loss.item())
-            epoch_loss.append(sum(batch_loss) / len(batch_loss))
-            logging.info('Client Index = {}\tEpoch: {}\tLoss: {:.6f}'.format(self.id, epoch, sum(epoch_loss) / len(epoch_loss)))
+                epoch_loss.append(sum(batch_loss) / len(batch_loss))
+                logging.info('Client Index = {}\tEpoch: {}\tLoss: {:.6f}'.format(self.id, epoch, sum(epoch_loss) / len(epoch_loss)))
+        else:
+            for epoch in range(first_epochs, args.epochs):
+                batch_loss = []
+                for batch_idx, (x, labels, index) in enumerate(train_data):
+                    x, labels = x.to(device), labels.to(device)
+                    model.zero_grad()
+                    log_probs = model(x)
+                    loss = criterion(log_probs, labels)
+                    loss.backward()
+                    optimizer.step()
+                    batch_loss.append(loss.item())
+                epoch_loss.append(sum(batch_loss) / len(batch_loss))
+                logging.info('Client Index = {}\tEpoch: {}\tLoss: {:.6f}'.format(self.id, epoch, sum(epoch_loss) / len(epoch_loss)))
 
         logging.info('Client Index = {}\told_forgotten_set_len: {}\tnew_forgotten_set_len: {}'.format(self.id, len(forgotten_set), len(new_forgotten_set)))
 
