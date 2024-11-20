@@ -77,7 +77,7 @@ def add_args(parser):
 
     parser.add_argument("--adjust_alpha", type=float, default=0.2, help='the ratio of num elements for adjustments')
 
-    parser.add_argument("--forgotten_sigma", type=float, default=0.2, help='sigma for forgotten set')
+    parser.add_argument("--forgotten_train", type=int, default=1, help='using only forgotten data after adjustment')
 
     parser.add_argument("--adjustment_epochs", type=int, default=None, help=" the number of local apoches used in model adjustment round, if it is set None, it is equal to the number of epoches for training round" )
 
