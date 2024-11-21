@@ -2,6 +2,7 @@ import logging
 
 import torch
 from torch import nn
+from torch.utils.data import TensorDataset, DataLoader
 
 try:
     from core.trainer.model_trainer import ModelTrainer
@@ -103,9 +104,19 @@ class MyModelTrainer(ModelTrainer):
 
                 selected_x = torch.stack(x_tensors).to(device)
                 selected_y = torch.stack(y_tensors).to(device)
-                log_probs = model(selected_x)
-                loss = criterion(log_probs, selected_y)
-                loss.backward()
+
+                # Create a DataLoader for the forgotten_dataset
+                forgotten_dataset = TensorDataset(selected_x, selected_y)
+                forgotten_loader = DataLoader(forgotten_dataset, batch_size=args.batch_size, shuffle=True)
+
+                # forgotten gradient
+                for batch_idx, (x, labels) in enumerate(forgotten_loader):
+                    x, labels = x.to(device), labels.to(device)
+                    log_probs = model(x)
+                    loss = criterion(log_probs, labels)
+                    loss.backward()
+                    if args.growth_data_mode == "batch":
+                        break
                 gradients = {name: param.grad.data.cpu().clone() for name, param in model.named_parameters() if param.requires_grad}
             # batch
             else:
@@ -114,7 +125,8 @@ class MyModelTrainer(ModelTrainer):
                     log_probs = model(x)
                     loss = criterion(log_probs, labels)
                     loss.backward()
-                    break
+                    if args.growth_data_mode == "batch":
+                        break
                 gradients = {name: param.grad.data.cpu().clone() for name, param in model.named_parameters() if param.requires_grad}
             model.grow_mask_dict(gradients)
             model.apply_mask()
@@ -124,12 +136,14 @@ class MyModelTrainer(ModelTrainer):
         if args.forgotten_train == 1 and len(new_forgotten_set) > 1:
             for epoch in range(first_epochs, args.epochs):
                 batch_loss = []
-                model.zero_grad()
-                log_probs = model(selected_x)
-                loss = criterion(log_probs, selected_y)
-                loss.backward()
-                optimizer.step()
-                batch_loss.append(loss.item())
+                for batch_idx, (x, labels) in enumerate(forgotten_loader):
+                    x, labels = x.to(device), labels.to(device)
+                    model.zero_grad()
+                    log_probs = model(x)
+                    loss = criterion(log_probs, labels)
+                    loss.backward()
+                    optimizer.step()
+                    batch_loss.append(loss.item())
                 epoch_loss.append(sum(batch_loss) / len(batch_loss))
                 logging.info('Client Index = {}\tEpoch: {}\tLoss: {:.6f}'.format(self.id, epoch, sum(epoch_loss) / len(epoch_loss)))
         else:
