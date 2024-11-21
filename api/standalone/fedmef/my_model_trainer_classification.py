@@ -2,25 +2,22 @@ import logging
 
 import torch
 from torch import nn
+from ...pruning.init_scheme import f_decay
 
 try:
     from core.trainer.model_trainer import ModelTrainer
 except ImportError:
     from FedPruning.core.trainer.model_trainer import ModelTrainer
 
-try:
-    from api.standalone.fedmef.sap.sapiter import to_sapit
-except ImportError:
-    from FedPruning.api.standalone.fedmef.sap.sapiter import to_sapit
-
 class MyModelTrainer(ModelTrainer):
     def __init__(self, model, args=None):
         super().__init__(model, args)
         self.lambda_l2 = args.lambda_l2
-        self.k = args.num_of_lowest_k
         self.initial_lr = args.lr
         self.psi = args.psi_of_lr
         self.xi = args.max_lr # args.max_lr, at first set initial_lr
+        self.enable_dynamic_lowest_k = args.enable_dynamic_lowest_k
+        self.penalty_indices = {}
 
     def get_model(self):
         return self.model
@@ -31,21 +28,37 @@ class MyModelTrainer(ModelTrainer):
     def set_model_params(self, model_parameters):
         self.model.load_state_dict(model_parameters, strict=False)
 
-    def calc_bae_loss(self, init_loss, model):
+    def update_global_penalty_index(self, model, round_idx):
+        global_penalty_indices = {}
+        for name, param in model.named_parameters():
+            if name in model.mask_dict:
+                active_num = (model.mask_dict[name] == 1).int().sum().item()
+                k = int(f_decay(round_idx, self.args.gamma, self.args.T_end) * active_num)
+                _, idx = torch.topk(param.flatten().abs(), k, largest=False)
+                global_penalty_indices[name] = idx
+        self.penalty_indices = global_penalty_indices
+
+    def calc_bae_loss(self, init_loss, round_idx, model):
         low_magnitude_params = []
         for name, param in model.named_parameters():
-            sorted_params = torch.sort(param.abs().flatten())[0]
-            threshold = sorted_params[self.k]  # 获取前k个最小值
-            mask_low = (param.abs() <= threshold).float()
-            low_magnitude_params.append(param * mask_low)
+            if name in model.mask_dict:
+                if self.enable_dynamic_lowest_k:
+                    sorted_params = torch.sort(param.abs().flatten())[0]
+                    active_num = (model.mask_dict[name] == 1).int().sum().item()
+                    lowest_k = int(f_decay(round_idx, self.args.gamma, self.args.T_end) * active_num)
+                    threshold = sorted_params[lowest_k]  # 获取前k个最小值
+                    mask_low = (param.abs() <= threshold).float()
+                    low_magnitude_params.append(param * mask_low)
+                else:
+                    low_magnitude_params.append(param.flatten()[self.penalty_indices[name]])
 
         l2_loss = sum(torch.norm(param, 2) for param in low_magnitude_params)
         l1_loss = sum(torch.norm(param, 1) for param in low_magnitude_params)
         total_loss = init_loss + l2_loss
         return total_loss, l1_loss
 
-    def adjust_learning_rate(self, optimizer, l1_loss, current_round, current_step, step_per_round):
-        B = step_per_round * (current_round + 1)
+    def adjust_learning_rate(self, optimizer, l1_loss, total_round, current_round, current_step, step_per_round):
+        B = step_per_round * total_round
         b = current_step + step_per_round * current_round
 
         decay = (2 * B - 2 * b) / (2 * B - b)
@@ -64,10 +77,6 @@ class MyModelTrainer(ModelTrainer):
         # mode 3 : training with mask, calculate the gradient
         model = self.model
 
-        # add sapit to model
-        if args.enable_fedmef == 1:
-            model = to_sapit(model, args.strategy, args.gamma, True)
-
         model.to(device)
         model.train()
 
@@ -79,6 +88,9 @@ class MyModelTrainer(ModelTrainer):
             optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, self.model.parameters()), lr=args.lr,
                                          weight_decay=args.wd, amsgrad=True)
 
+        if not args.enable_dynamic_lowest_k:
+            self.update_global_penalty_index(model, round_idx)
+
         epoch_loss = []
         for epoch in range(args.epochs):
             batch_loss = []
@@ -88,9 +100,8 @@ class MyModelTrainer(ModelTrainer):
                 log_probs = model(x)
                 loss = criterion(log_probs, labels)
 
-                if args.enable_fedmef == 1:
-                    loss, l1_loss = self.calc_bae_loss(loss, model)
-                    self.adjust_learning_rate(optimizer, l1_loss, epoch, batch_idx, len(train_data))
+                loss, l1_loss = self.calc_bae_loss(loss, round_idx, model)
+                self.adjust_learning_rate(optimizer, l1_loss, args.epochs, epoch, batch_idx, len(train_data))
 
                 loss.backward()
                 #self.model.apply_mask_gradients()  # apply pruning mask

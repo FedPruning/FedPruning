@@ -29,6 +29,10 @@ from api.model.cv.resnet import resnet18, resnet56
 from api.distributed.fedmef.FedMefAPI import FedML_init, FedML_FedMef_distributed
 from api.pruning.model_pruning import SparseModel
 
+try:
+    from api.standalone.fedmef.sap.sapiter import to_sapit
+except ImportError:
+    from FedPruning.api.standalone.fedmef.sap.sapiter import to_sapit
 
 def add_args(parser):
     """
@@ -75,20 +79,17 @@ def add_args(parser):
 
     parser.add_argument("--adjust_alpha", type=float, default=0.2, help='the ratio of num elements for adjustments')
 
-    # new param for fedmef
-    parser.add_argument("--enable_fedmef", type=int, default=0, help="switch of turning on/off fedmef")
-
     parser.add_argument("--strategy", type=str, default="mink", help="strategy for sap")
 
     parser.add_argument("--gamma", type=float, default=0.5, help="a sap rate gamma to train")
 
     parser.add_argument("--lambda_l2", type=float, default=0.01, help="lambda_l2 of BaE")
 
-    parser.add_argument("--num_of_lowest_k", type=int, default=5, help="num_of_lowest_k in BaE")
-
     parser.add_argument("--psi_of_lr", type=float, default=1.0, help="weight of adjusted learning rate in BaE")
 
     parser.add_argument("--max_lr", type=float, default=0.1, help="max learning rate in adjustment")
+
+    parser.add_argument("--enable_dynamic_lowest_k", type=int, default=0, help="is a switch for finding lowest k in training or marking lowest k before training")
 
     # Following arguments are seldom changed
     parser.add_argument(
@@ -272,6 +273,8 @@ if __name__ == "__main__":
     # Note if the model is DNN (e.g., ResNet), the training will be very slow.
     # In this case, please use our FedML distributed version (./experiments/distributed_fedprune)
     inner_model = create_model(args, model_name=args.model, output_dim=dataset[7])
+    # add sapit to model
+    inner_model = to_sapit(inner_model, args.strategy, args.gamma, True)
     # create the sparse model
     model = SparseModel(inner_model, target_density=args.target_density, )
 
