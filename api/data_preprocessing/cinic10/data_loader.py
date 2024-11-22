@@ -7,7 +7,7 @@ import torch.nn.functional as F
 import torch.utils.data as data
 import torchvision.transforms as transforms
 
-from .datasets import ImageFolderTruncated
+from .datasets import ImageFolderTruncated, ImageFolderTruncated_ust
 
 #logging.basicConfig()
 logger = logging.getLogger()
@@ -208,6 +208,8 @@ def partition_data(dataset, datadir, partition, n_nets, alpha):
 def get_dataloader(dataset, datadir, train_bs, test_bs, dataidxs=None):
     return get_dataloader_cinic10(datadir, train_bs, test_bs, dataidxs)
 
+def get_dataloader_ust(dataset, datadir, train_bs, test_bs, dataidxs=None):
+    return get_dataloader_cinic10_ust(datadir, train_bs, test_bs, dataidxs)
 
 # for local devices
 def get_dataloader_test(dataset, datadir, train_bs, test_bs, dataidxs_train, dataidxs_test):
@@ -216,6 +218,22 @@ def get_dataloader_test(dataset, datadir, train_bs, test_bs, dataidxs_train, dat
 
 def get_dataloader_cinic10(datadir, train_bs, test_bs, dataidxs=None):
     dl_obj = ImageFolderTruncated
+
+    transform_train, transform_test = _data_transforms_cinic10()
+
+    traindir = os.path.join(datadir, 'train')
+    valdir = os.path.join(datadir, 'test')
+
+    train_ds = dl_obj(traindir, dataidxs=dataidxs, transform=transform_train)
+    test_ds = dl_obj(valdir, transform=transform_train)
+
+    train_dl = data.DataLoader(dataset=train_ds, batch_size=train_bs, shuffle=True, drop_last=True)
+    test_dl = data.DataLoader(dataset=test_ds, batch_size=test_bs, shuffle=False, drop_last=True)
+
+    return train_dl, test_dl
+
+def get_dataloader_cinic10_ust(datadir, train_bs, test_bs, dataidxs=None):
+    dl_obj = ImageFolderTruncated_ust
 
     transform_train, transform_test = _data_transforms_cinic10()
 
@@ -312,6 +330,43 @@ def load_partition_data_cinic10(dataset, data_dir, partition_method, partition_a
 
         # training batch size = 64; algorithms batch size = 32
         train_data_local, test_data_local = get_dataloader(dataset, data_dir, batch_size, batch_size,
+                                                           dataidxs)
+        logging.info("client_idx = %d, batch_num_train_local = %d, batch_num_test_local = %d" % (
+            client_idx, len(train_data_local), len(test_data_local)))
+        train_data_local_dict[client_idx] = train_data_local
+        test_data_local_dict[client_idx] = test_data_local
+    return train_data_num, test_data_num, train_data_global, test_data_global, \
+           data_local_num_dict, train_data_local_dict, test_data_local_dict, class_num
+
+
+def load_partition_data_cinic10_ust(dataset, data_dir, partition_method, partition_alpha, client_number, batch_size):
+    X_train, y_train, X_test, y_test, net_dataidx_map, traindata_cls_counts = partition_data(dataset,
+                                                                                             data_dir,
+                                                                                             partition_method,
+                                                                                             client_number,
+                                                                                             partition_alpha)
+    class_num = len(np.unique(y_train))
+    logging.info("traindata_cls_counts = " + str(traindata_cls_counts))
+    train_data_num = sum([len(net_dataidx_map[r]) for r in range(client_number)])
+
+    train_data_global, test_data_global = get_dataloader_ust(dataset, data_dir, batch_size, batch_size)
+    logging.info("train_dl_global number = " + str(len(train_data_global)))
+    logging.info("test_dl_global number = " + str(len(train_data_global)))
+    test_data_num = len(test_data_global)
+
+    # get local dataset
+    data_local_num_dict = dict()
+    train_data_local_dict = dict()
+    test_data_local_dict = dict()
+
+    for client_idx in range(client_number):
+        dataidxs = net_dataidx_map[client_idx]
+        local_data_num = len(dataidxs)
+        data_local_num_dict[client_idx] = local_data_num
+        logging.info("client_idx = %d, local_sample_number = %d" % (client_idx, local_data_num))
+
+        # training batch size = 64; algorithms batch size = 32
+        train_data_local, test_data_local = get_dataloader_ust(dataset, data_dir, batch_size, batch_size,
                                                            dataidxs)
         logging.info("client_idx = %d, batch_num_train_local = %d, batch_num_test_local = %d" % (
             client_idx, len(train_data_local), len(test_data_local)))
