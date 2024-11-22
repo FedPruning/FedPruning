@@ -20,7 +20,7 @@ from api.distributed.utils.gpu_mapping import mapping_processes_to_gpu_device_fr
 
 from api.data_preprocessing.cifar10.data_loader import load_partition_data_cifar10_ust
 from api.data_preprocessing.cifar100.data_loader import load_partition_data_cifar100
-from api.data_preprocessing.cinic10.data_loader import load_partition_data_cinic10
+from api.data_preprocessing.cinic10.data_loader import load_partition_data_cinic10_ust
 
 from api.model.cv.resnet_gn import resnet18 as resnet18_gn
 from api.model.cv.mobilenet import mobilenet
@@ -135,7 +135,7 @@ def load_data(args, dataset_name):
     elif dataset_name == "cifar100":
         data_loader = load_partition_data_cifar100
     elif dataset_name == "cinic10":
-        data_loader = load_partition_data_cinic10
+        data_loader = load_partition_data_cinic10_ust
     else:
         data_loader = load_partition_data_cifar10_ust
 
