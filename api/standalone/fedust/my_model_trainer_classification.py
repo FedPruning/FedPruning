@@ -74,8 +74,13 @@ class MyModelTrainer(ModelTrainer):
                     x = x.to(device)
                     pred = model(x)
                     _, predicted = torch.max(pred, -1)
-                    for i in range(predicted.size(0)):
-                        result[index[i].item()] = predicted[i]
+                    if args.forgotten_correct == 1:
+                        for i in range(predicted.size(0)):
+                            if predicted[i] == target[i]:
+                                result[index[i].item()] = predicted[i]
+                    else:
+                        for i in range(predicted.size(0)):
+                            result[index[i].item()] = predicted[i]
 
             # pruning
             model.prune_mask_dict(t=round_idx, T_end=args.T_end, alpha=args.adjust_alpha)
