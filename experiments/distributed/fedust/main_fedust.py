@@ -79,6 +79,8 @@ def add_args(parser):
 
     parser.add_argument("--forgotten_train", type=int, default=1, help='using only forgotten data after adjustment')
 
+    parser.add_argument("--forgotten_correct", type=int, default=1, help='using only previously correct prediction')
+
     parser.add_argument("--adjustment_epochs", type=int, default=None, help=" the number of local apoches used in model adjustment round, if it is set None, it is equal to the number of epoches for training round" )
 
     # Following arguments are seldom changed
