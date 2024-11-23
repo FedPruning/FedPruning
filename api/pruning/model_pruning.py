@@ -10,7 +10,7 @@ class SparseModel(nn.Module):
                  target_density:float=1.,
                  strategy:str="uniform_magnitude",
                  mask_dict: dict = {},
-                 ignore_layers:list[int, str, type]=[0, "bias", nn.BatchNorm2d, "bn"], 
+                 ignore_layers:list[int, str, type]=[0, "bias", nn.BatchNorm2d, "bn", nn.LayerNorm, nn.Embedding, ], 
                  device = None,
                  ):
         super(SparseModel, self).__init__()
@@ -140,10 +140,10 @@ class SparseModel(nn.Module):
             if name in self.mask_dict:
                 weight.grad = weight.grad * self.mask_dict[name]
 
-    def forward(self, x):
+    def forward(self, x, *args, **kargs):
         # mask weight
         self.apply_mask()
-        y = self.model(x)
+        y = self.model(x, *args, **kargs)
         return y
 
     def stat_actual_density(self):
