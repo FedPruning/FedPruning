@@ -21,10 +21,12 @@ from api.distributed.utils.gpu_mapping import mapping_processes_to_gpu_device_fr
 from api.data_preprocessing.cifar10.data_loader import load_partition_data_cifar10
 from api.data_preprocessing.cifar100.data_loader import load_partition_data_cifar100
 from api.data_preprocessing.cinic10.data_loader import load_partition_data_cinic10
+from api.data_preprocessing.tinystories.data_loader import load_partition_data_tinystories
 
 from api.model.cv.resnet_gn import resnet18 as resnet18_gn
 from api.model.cv.mobilenet import mobilenet
 from api.model.cv.resnet import resnet18, resnet56
+from api.model.nlp.gpt2 import GPT2Model, GPT2Config
 
 from api.distributed.fedtinyclean.FedTinyCleanAPI import FedML_init, FedML_FedTinyClean_distributed
 from api.pruning.model_pruning import SparseModel
@@ -55,10 +57,14 @@ def add_args(parser):
     )
 
     parser.add_argument(
+        "--nlp_hidden_size", type=int, default=256, metavar="N", help="the hidden size for nlp model (default: 256) option: [64, 256, 1024]"
+    )
+    
+    
+    parser.add_argument(
         "--num_eval", type=int, default=128, help="the number of the data samples used for eval, -1 is the total testing dataset."
     )
-    parser.add_argument('--lr', type=float, default=0.001, metavar='LR',
-                        help='learning rate (default: 0.001)')
+    parser.add_argument('--lr', type=float, default=0.001, metavar='LR', help='learning rate (default: 0.001)')
 
     parser.add_argument("--epochs", type=int, default=5, metavar="EP", help="how many epochs will be trained locally")
 
@@ -132,6 +138,8 @@ def load_data(args, dataset_name):
         data_loader = load_partition_data_cifar100
     elif dataset_name == "cinic10":
         data_loader = load_partition_data_cinic10
+    elif dataset_name == "tinystories":
+        data_loader = load_partition_data_tinystories
     else:
         data_loader = load_partition_data_cifar10
 
@@ -176,6 +184,10 @@ def create_model(args, model_name, output_dim):
         model = resnet56(class_num=output_dim)
     elif model_name == "mobilenet":
         model = mobilenet(class_num=output_dim)
+    elif model_name == "gpt2":
+        GPT2Config["hidden_size"] = args.nlp_hidden_size
+        model = GPT2Model(GPT2Config)
+        logging.info("number of parameters: %.2fM" % (model.get_num_params()/1e6,))
     return model
 
 if __name__ == "__main__":

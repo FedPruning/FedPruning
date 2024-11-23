@@ -84,6 +84,9 @@ class MyModelTrainer(ModelTrainer):
                 metrics['test_correct'] += correct.item()
                 metrics['test_loss'] += loss.item() * target.size(0)
                 metrics['test_total'] += target.size(0)
+                
+        metrics['test_correct'] /= metrics['test_total'] 
+        metrics['test_loss'] /= metrics['test_total'] 
         return metrics
 
     def test_on_the_server(self, train_data_local_dict, test_data_local_dict, device, args=None) -> bool:
