@@ -237,6 +237,8 @@ if __name__ == "__main__":
             + args.dataset 
             + "_"
             + args.model 
+            + "_"
+            + ("dynamic_k" if args.enable_dynamic_lowest_k == 1 else "fixed_k")
             ,
             config=args,
         )
