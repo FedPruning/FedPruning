@@ -31,3 +31,4 @@ transformers==4.28.1
 datasets
 evaluate
 rouge-score
+scipy

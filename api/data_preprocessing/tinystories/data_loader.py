@@ -34,18 +34,18 @@ def partition_data(train_data, test_data, partition, num_clients, alpha, train_r
     
     return subset_train_data, subset_test_data, net_dataidx_map
 
-def load_partition_data_tinystories(dataset, data_dir, partition_method, partition_alpha, client_number, batch_size):
+def load_partition_data_tinystories(partition_method, partition_alpha, client_number, batch_size, ratio = 0.01):
     data = load_dataset("roneneldan/TinyStories")
     train_data, test_data = data["train"], data["validation"]
-    train_data, test_data, net_dataidx_map = partition_data(train_data, test_data, partition_method, client_number, partition_alpha, train_ratio = 0.01, test_ratio = 0.01)
+    train_data, test_data, net_dataidx_map = partition_data(train_data, test_data, partition_method, client_number, partition_alpha, train_ratio = ratio, test_ratio = ratio)
 
     train_data_global = get_dataloader_tinystories(train_data, batch_size=batch_size)
     test_data_global = get_dataloader_tinystories(test_data,  batch_size=batch_size)
     train_data_num = len(train_data_global)
     test_data_num = len(test_data_global)
 
-    logging.info("train_dl_global number = " + str(train_data_num))
-    logging.info("test_dl_global number = " + str(test_data_num))
+    logging.debug("train_dl_global number = " + str(train_data_num))
+    logging.debug("test_dl_global number = " + str(test_data_num))
     
      # get local dataset
     data_local_num_dict = dict()
@@ -56,13 +56,13 @@ def load_partition_data_tinystories(dataset, data_dir, partition_method, partiti
         dataidxs = net_dataidx_map[client_idx]
         local_data_num = len(dataidxs)
         data_local_num_dict[client_idx] = local_data_num
-        # logging.info("client_idx = %d, local_sample_number = %d" % (client_idx, local_data_num))
+        logging.debug("client_idx = %d, local_sample_number = %d" % (client_idx, local_data_num))
         
         train_data_local = get_dataloader_tinystories(train_data,  batch_size=batch_size, dataidxs=dataidxs)
         test_data_local =  get_dataloader_tinystories(test_data,  batch_size=batch_size)
         
-        # logging.info("client_idx = %d, batch_num_train_local = %d, batch_num_test_local = %d" % (
-        #     client_idx, len(train_data_local), len(test_data_local)))
+        logging.debug("client_idx = %d, batch_num_train_local = %d, batch_num_test_local = %d" % (
+            client_idx, len(train_data_local), len(test_data_local)))
         train_data_local_dict[client_idx] = train_data_local
         test_data_local_dict[client_idx] = test_data_local
     
