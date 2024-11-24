@@ -21,10 +21,13 @@ from api.distributed.utils.gpu_mapping import mapping_processes_to_gpu_device_fr
 from api.data_preprocessing.cifar10.data_loader import load_partition_data_cifar10
 from api.data_preprocessing.cifar100.data_loader import load_partition_data_cifar100
 from api.data_preprocessing.cinic10.data_loader import load_partition_data_cinic10
+from api.data_preprocessing.svhn.data_loader import load_partition_data_svhn
+from api.data_preprocessing.tinystories.data_loader import load_partition_data_tinystories
 
 from api.model.cv.resnet_gn import resnet18 as resnet18_gn
 from api.model.cv.mobilenet import mobilenet
 from api.model.cv.resnet import resnet18, resnet56
+from api.model.nlp.gpt2 import GPT2Model, GPT2Config
 
 from api.distributed.fedtinyclean.FedTinyCleanAPI import FedML_init, FedML_FedTinyClean_distributed
 from api.pruning.model_pruning import SparseModel
@@ -45,6 +48,10 @@ def add_args(parser):
     )
 
     parser.add_argument(
+        "--dataset_ratio", type=float, default=0.01, metavar="PA", help="the ratio of subset for the total dataset (default: 0.01). Only appliable for [tinystories, ]"
+    )
+
+    parser.add_argument(
         "--client_num_in_total", type=int, default=10, metavar="NN", help="number of workers in a distributed cluster"
     )
 
@@ -55,10 +62,14 @@ def add_args(parser):
     )
 
     parser.add_argument(
+        "--nlp_hidden_size", type=int, default=256, metavar="N", help="the hidden size for nlp model (default: 256) option: [64, 256, 1024]"
+    )
+    
+    
+    parser.add_argument(
         "--num_eval", type=int, default=128, help="the number of the data samples used for eval, -1 is the total testing dataset."
     )
-    parser.add_argument('--lr', type=float, default=0.001, metavar='LR',
-                        help='learning rate (default: 0.001)')
+    parser.add_argument('--lr', type=float, default=0.001, metavar='LR', help='learning rate (default: 0.001)')
 
     parser.add_argument("--epochs", type=int, default=5, metavar="EP", help="how many epochs will be trained locally")
 
@@ -125,44 +136,34 @@ def load_data(args, dataset_name):
 
     if args.data_dir is None:
         args.data_dir = f"./../../../data/{dataset_name}"
+    
 
-    if dataset_name == "cifar10":
-        data_loader = load_partition_data_cifar10
-    elif dataset_name == "cifar100":
-        data_loader = load_partition_data_cifar100
-    elif dataset_name == "cinic10":
-        data_loader = load_partition_data_cinic10
+    if dataset_name == "tinystories":
+        dataset_tuple = load_partition_data_tinystories(args.partition_method,
+            args.partition_alpha, args.client_num_in_total, args.batch_size,  args.dataset_ratio)
+
     else:
-        data_loader = load_partition_data_cifar10
+        if dataset_name == "cifar10":
+            data_loader = load_partition_data_cifar10
+        elif dataset_name == "cifar100":
+            data_loader = load_partition_data_cifar100
+        elif dataset_name == "cinic10":
+            data_loader = load_partition_data_cinic10
+        elif dataset_name == "svhn":
+            data_loader = load_partition_data_svhn
+        else:
+            data_loader = load_partition_data_cifar10
 
-    (
-        train_data_num,
-        test_data_num,
-        train_data_global,
-        test_data_global,
-        train_data_local_num_dict,
-        train_data_local_dict,
-        test_data_local_dict,
-        class_num,
-    ) = data_loader(
-        args.dataset,
-        args.data_dir,
-        args.partition_method,
-        args.partition_alpha,
-        args.client_num_in_total,
-        args.batch_size,
-        )
-    dataset = [
-        train_data_num,
-        test_data_num,
-        train_data_global,
-        test_data_global,
-        train_data_local_num_dict,
-        train_data_local_dict,
-        test_data_local_dict,
-        class_num,
-    ]
-    return dataset
+        dataset_tuple = data_loader(
+            args.dataset,
+            args.data_dir,
+            args.partition_method,
+            args.partition_alpha,
+            args.client_num_in_total,
+            args.batch_size,
+            )
+        
+    return dataset_tuple
 
 
 def create_model(args, model_name, output_dim):
@@ -176,6 +177,10 @@ def create_model(args, model_name, output_dim):
         model = resnet56(class_num=output_dim)
     elif model_name == "mobilenet":
         model = mobilenet(class_num=output_dim)
+    elif model_name == "gpt2":
+        GPT2Config["hidden_size"] = args.nlp_hidden_size
+        model = GPT2Model(GPT2Config)
+        logging.info("number of parameters: %.2fM" % (model.get_num_params()/1e6,))
     return model
 
 if __name__ == "__main__":

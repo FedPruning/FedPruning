@@ -139,27 +139,13 @@ class FedInitpruneAggregator(object):
             # stats = {'training_acc': train_acc, 'training_loss': train_loss}
             # logging.info(stats)
 
-            # test data
-            test_num_samples = []
-            test_tot_corrects = []
-            test_losses = []
-
             # last seven testing should be tested with full testing dataset
             if round_idx >= self.args.comm_round - 10 or self.args.num_eval == -1:
                 metrics = self.trainer.test(self.test_global, self.device, self.args)
             else:
                 metrics = self.trainer.test(self.val_global, self.device, self.args)
 
-            test_tot_correct, test_num_sample, test_loss = metrics['test_correct'], metrics['test_total'], metrics[
-                'test_loss']
-            test_tot_corrects.append(copy.deepcopy(test_tot_correct))
-            test_num_samples.append(copy.deepcopy(test_num_sample))
-            test_losses.append(copy.deepcopy(test_loss))
-
-            # test on test dataset
-            test_acc = sum(test_tot_corrects) / sum(test_num_samples)
-            test_loss = sum(test_losses) / sum(test_num_samples)
-            wandb.log({"Test/Acc": test_acc, "round": round_idx})
-            wandb.log({"Test/Loss": test_loss, "round": round_idx})
-            stats = {'test_acc': test_acc, 'test_loss': test_loss}
-            logging.info(stats)
+            for key in metrics:
+                    if key != "test_total":
+                        wandb.log({f"Test/{key}": metrics[key], "round": round_idx})
+            logging.info(metrics)
