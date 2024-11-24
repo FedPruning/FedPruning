@@ -20,7 +20,7 @@ from api.distributed.utils.gpu_mapping import mapping_processes_to_gpu_device_fr
 
 from api.data_preprocessing.cifar10.data_loader import load_partition_data_cifar10_ust
 from api.data_preprocessing.cifar100.data_loader import load_partition_data_cifar100
-from api.data_preprocessing.cinic10.data_loader import load_partition_data_cinic10
+from api.data_preprocessing.cinic10.data_loader import load_partition_data_cinic10_ust
 from api.data_preprocessing.svhn.data_loader import load_partition_data_svhn
 from api.data_preprocessing.tinystories.data_loader import load_partition_data_tinystories
 
@@ -83,7 +83,9 @@ def add_args(parser):
 
     parser.add_argument("--adjust_alpha", type=float, default=0.2, help='the ratio of num elements for adjustments')
 
-    parser.add_argument("--forgotten_sigma", type=float, default=0.2, help='sigma for forgotten set')
+    parser.add_argument("--forgotten_train", type=int, default=1, help='using only forgotten data after adjustment')
+
+    parser.add_argument("--forgotten_correct", type=int, default=1, help='using only previously correct prediction')
 
     parser.add_argument("--adjustment_epochs", type=int, default=None, help=" the number of local apoches used in model adjustment round, if it is set None, it is equal to the number of epoches for training round" )
 
@@ -142,14 +144,13 @@ def load_data(args, dataset_name):
         pass
         # dataset_tuple = load_partition_data_tinystories(args.partition_method,
         #     args.partition_alpha, args.client_num_in_total, args.batch_size,  args.dataset_ratio)
-
     else:
         if dataset_name == "cifar10":
             data_loader = load_partition_data_cifar10_ust
         elif dataset_name == "cifar100":
             data_loader = load_partition_data_cifar100
         elif dataset_name == "cinic10":
-            data_loader = load_partition_data_cinic10
+            data_loader = load_partition_data_cinic10_ust
         elif dataset_name == "svhn":
             data_loader = load_partition_data_svhn
         else:
