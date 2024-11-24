@@ -139,7 +139,7 @@ class MyModelTrainer(ModelTrainer):
 
         # training after adjustment
         if args.forgotten_train == 1 and len(new_forgotten_set) > 1:
-            for epoch in range(first_epochs, args.epochs):
+            for epoch in range(first_epochs, local_epochs):
                 batch_loss = []
                 for batch_idx, (x, labels) in enumerate(forgotten_loader):
                     x, labels = x.to(device), labels.to(device)
@@ -152,7 +152,7 @@ class MyModelTrainer(ModelTrainer):
                 epoch_loss.append(sum(batch_loss) / len(batch_loss))
                 logging.info('Client Index = {}\tEpoch: {}\tLoss: {:.6f}'.format(self.id, epoch, sum(epoch_loss) / len(epoch_loss)))
         else:
-            for epoch in range(first_epochs, args.epochs):
+            for epoch in range(first_epochs, local_epochs):
                 batch_loss = []
                 for batch_idx, (x, labels, index) in enumerate(train_data):
                     x, labels = x.to(device), labels.to(device)
