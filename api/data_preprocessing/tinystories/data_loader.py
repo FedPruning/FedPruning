@@ -34,10 +34,10 @@ def partition_data(train_data, test_data, partition, num_clients, alpha, train_r
     
     return subset_train_data, subset_test_data, net_dataidx_map
 
-def load_partition_data_tinystories(dataset, data_dir, partition_method, partition_alpha, client_number, batch_size):
+def load_partition_data_tinystories(partition_method, partition_alpha, client_number, batch_size, ratio = 0.01):
     data = load_dataset("roneneldan/TinyStories")
     train_data, test_data = data["train"], data["validation"]
-    train_data, test_data, net_dataidx_map = partition_data(train_data, test_data, partition_method, client_number, partition_alpha, train_ratio = 0.01, test_ratio = 0.01)
+    train_data, test_data, net_dataidx_map = partition_data(train_data, test_data, partition_method, client_number, partition_alpha, train_ratio = ratio, test_ratio = ratio)
 
     train_data_global = get_dataloader_tinystories(train_data, batch_size=batch_size)
     test_data_global = get_dataloader_tinystories(test_data,  batch_size=batch_size)

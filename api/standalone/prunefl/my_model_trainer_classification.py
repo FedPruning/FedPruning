@@ -94,8 +94,8 @@ class MyModelTrainer(ModelTrainer):
         model.eval()
 
         metrics = {
-            'test_correct': 0,
-            'test_loss': 0,
+            'Accuracy': 0,
+            'Loss': 0,
             'test_total': 0
         }
 
@@ -112,12 +112,12 @@ class MyModelTrainer(ModelTrainer):
                 _, predicted = torch.max(pred, -1)
                 correct = predicted.eq(target).sum()
 
-                metrics['test_correct'] += correct.item()
-                metrics['test_loss'] += loss.item() * target.size(0)
+                metrics['Accuracy'] += correct.item()
+                metrics['Loss'] += loss.item() * target.size(0)
                 metrics['test_total'] += target.size(0)
         
-        metrics['test_correct'] /= metrics['test_total'] 
-        metrics['test_loss'] /= metrics['test_total'] 
+        metrics['Accuracy'] /= metrics['test_total'] 
+        metrics['Loss'] /= metrics['test_total'] 
         return metrics
 
     def test_on_the_server(self, train_data_local_dict, test_data_local_dict, device, args=None) -> bool:
