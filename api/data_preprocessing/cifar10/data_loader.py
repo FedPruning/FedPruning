@@ -255,12 +255,12 @@ def load_partition_data_cifar10(dataset, data_dir, partition_method, partition_a
     # Or it do not need to return. 
     X_train, y_train, X_test, y_test, net_dataidx_map, traindata_cls_counts = partition_data(dataset, data_dir, partition_method, client_number, partition_alpha)
     class_num = len(np.unique(y_train))
-    logging.info("traindata_cls_counts = " + str(traindata_cls_counts))
+    logging.debug("traindata_cls_counts = " + str(traindata_cls_counts))
     train_data_num = sum([len(net_dataidx_map[r]) for r in range(client_number)])
 
     train_data_global, test_data_global = get_dataloader(dataset, data_dir, batch_size, batch_size)
-    logging.info("train_dl_global number = " + str(len(train_data_global)))
-    logging.info("test_dl_global number = " + str(len(test_data_global)))
+    logging.debug("train_dl_global number = " + str(len(train_data_global)))
+    logging.debug("test_dl_global number = " + str(len(test_data_global)))
     test_data_num = len(test_data_global)
 
     # get local dataset
@@ -272,10 +272,10 @@ def load_partition_data_cifar10(dataset, data_dir, partition_method, partition_a
         dataidxs = net_dataidx_map[client_idx]
         local_data_num = len(dataidxs)
         data_local_num_dict[client_idx] = local_data_num
-        logging.info("client_idx = %d, local_sample_number = %d" % (client_idx, local_data_num))
+        logging.debug("client_idx = %d, local_sample_number = %d" % (client_idx, local_data_num))
 
         train_data_local, test_data_local = get_dataloader(dataset, data_dir, batch_size, batch_size, dataidxs)
-        logging.info("client_idx = %d, batch_num_train_local = %d, batch_num_test_local = %d" % (
+        logging.debug("client_idx = %d, batch_num_train_local = %d, batch_num_test_local = %d" % (
             client_idx, len(train_data_local), len(test_data_local)))
         train_data_local_dict[client_idx] = train_data_local
         test_data_local_dict[client_idx] = test_data_local
@@ -297,12 +297,12 @@ def load_partition_data_cifar10_ust(dataset, data_dir, partition_method, partiti
                                                                                              client_number,
                                                                                              partition_alpha)
     class_num = len(np.unique(y_train))
-    logging.info("traindata_cls_counts = " + str(traindata_cls_counts))
+    logging.debug("traindata_cls_counts = " + str(traindata_cls_counts))
     train_data_num = sum([len(net_dataidx_map[r]) for r in range(client_number)])
 
     train_data_global, test_data_global = get_dataloader_ust(dataset, data_dir, batch_size, batch_size)
-    logging.info("train_dl_global number = " + str(len(train_data_global)))
-    logging.info("test_dl_global number = " + str(len(test_data_global)))
+    logging.debug("train_dl_global number = " + str(len(train_data_global)))
+    logging.debug("test_dl_global number = " + str(len(test_data_global)))
     test_data_num = len(test_data_global)
 
     # get local dataset
@@ -314,10 +314,10 @@ def load_partition_data_cifar10_ust(dataset, data_dir, partition_method, partiti
         dataidxs = net_dataidx_map[client_idx]
         local_data_num = len(dataidxs)
         data_local_num_dict[client_idx] = local_data_num
-        logging.info("client_idx = %d, local_sample_number = %d" % (client_idx, local_data_num))
+        logging.debug("client_idx = %d, local_sample_number = %d" % (client_idx, local_data_num))
 
         train_data_local, test_data_local = get_dataloader_ust(dataset, data_dir, batch_size, batch_size, dataidxs)
-        logging.info("client_idx = %d, batch_num_train_local = %d, batch_num_test_local = %d" % (
+        logging.debug("client_idx = %d, batch_num_train_local = %d, batch_num_test_local = %d" % (
             client_idx, len(train_data_local), len(test_data_local)))
         train_data_local_dict[client_idx] = train_data_local
         test_data_local_dict[client_idx] = test_data_local
