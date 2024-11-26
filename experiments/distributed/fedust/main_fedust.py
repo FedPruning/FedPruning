@@ -22,11 +22,12 @@ from api.data_preprocessing.cifar10.data_loader import load_partition_data_cifar
 from api.data_preprocessing.cifar100.data_loader import load_partition_data_cifar100
 from api.data_preprocessing.cinic10.data_loader import load_partition_data_cinic10_ust
 from api.data_preprocessing.svhn.data_loader import load_partition_data_svhn_ust
-# from api.data_preprocessing.tinystories.data_loader import load_partition_data_tinystories
+from api.data_preprocessing.tinystories.data_loader import load_partition_data_tinystories
 
 from api.model.cv.resnet_gn import resnet18 as resnet18_gn
 from api.model.cv.mobilenet import mobilenet
 from api.model.cv.resnet import resnet18, resnet56
+from api.model.cv.mobilenet_v3 import MobileNetV3
 
 from api.distributed.fedust.FedUSTAPI import FedML_init, FedML_FedUST_distributed
 from api.pruning.model_pruning import SparseModel
@@ -179,6 +180,8 @@ def create_model(args, model_name, output_dim):
         model = resnet56(class_num=output_dim)
     elif model_name == "mobilenet":
         model = mobilenet(class_num=output_dim)
+    elif model_name == "mobilenetv3":
+        model = MobileNetV3(model_mode= "SMALL", num_classes=output_dim)
     return model
 
 if __name__ == "__main__":

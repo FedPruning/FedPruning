@@ -28,14 +28,11 @@ from api.model.nlp.gpt2 import GPT2Model, GPT2Config
 from api.model.cv.resnet_gn import resnet18 as resnet18_gn
 from api.model.cv.mobilenet import mobilenet
 from api.model.cv.resnet import resnet18, resnet56
+from api.model.cv.mobilenet_v3 import MobileNetV3
 
 from api.distributed.fedmef.FedMefAPI import FedML_init, FedML_FedMef_distributed
 from api.pruning.model_pruning import SparseModel
-
-try:
-    from api.standalone.fedmef.sap.sapiter import to_sapit
-except ImportError:
-    from FedPruning.api.standalone.fedmef.sap.sapiter import to_sapit
+from api.standalone.fedmef.sap.sapiter import to_sapit
 
 def add_args(parser):
     """
@@ -77,6 +74,8 @@ def add_args(parser):
 
     parser.add_argument("--epochs", type=int, default=5, metavar="EP", help="how many epochs will be trained locally")
 
+    parser.add_argument("--adjustment_epochs", type=int, default=None, help=" the number of local apoches used in model adjustment round, if it is set None, it is equal to the number of epoches for training round" )
+
     parser.add_argument("--comm_round", type=int, default=10, help="how many round of communications we shoud use")
 
     parser.add_argument("--frequency_of_the_test", type=int, default=5, help="the frequency of the algorithms")
@@ -89,7 +88,9 @@ def add_args(parser):
     parser.add_argument('--T_end', type=int, default=100, help='end of time for update')
 
     parser.add_argument("--adjust_alpha", type=float, default=0.2, help='the ratio of num elements for adjustments')
-
+    
+    parser.add_argument("--enable_sap", type=int, default=1, help="use sap or not")
+    
     parser.add_argument("--sap_strategy", type=str, default="mink", help="strategy for sap")
 
     parser.add_argument("--gamma", type=float, default=0.5, help="a sap rate gamma to train")
@@ -190,6 +191,8 @@ def create_model(args, model_name, output_dim):
         model = resnet56(class_num=output_dim)
     elif model_name == "mobilenet":
         model = mobilenet(class_num=output_dim)
+    elif model_name == "mobilenetv3":
+        model = MobileNetV3(model_mode= "SMALL", num_classes=output_dim)
     elif model_name == "gpt2":
         GPT2Config["hidden_size"] = args.nlp_hidden_size
         model = GPT2Model(GPT2Config)
@@ -280,7 +283,8 @@ if __name__ == "__main__":
     # In this case, please use our FedML distributed version (./experiments/distributed_fedprune)
     inner_model = create_model(args, model_name=args.model, output_dim=dataset[7])
     # add sapit to model
-    inner_model = to_sapit(inner_model, args.sap_strategy, args.gamma, True)
+    if args.enable_sap:
+        inner_model = to_sapit(inner_model, args.sap_strategy, args.gamma, True)
     # create the sparse model
     model = SparseModel(inner_model, target_density=args.target_density, )
 

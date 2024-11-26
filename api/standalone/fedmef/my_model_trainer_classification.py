@@ -90,9 +90,14 @@ class MyModelTrainer(ModelTrainer):
 
         if not args.enable_dynamic_lowest_k:
             self.update_global_penalty_index(model, round_idx)
+        
+        if mode in [2, 3]:
+            local_epochs = args.adjustment_epochs if args.adjustment_epochs is not None else args.epochs
+        else:
+            local_epochs = args.epochs
 
         epoch_loss = []
-        for epoch in range(args.epochs):
+        for epoch in range(local_epochs):
             batch_loss = []
             for batch_idx, (x, labels) in enumerate(train_data):
                 x, labels = x.to(device), labels.to(device)
