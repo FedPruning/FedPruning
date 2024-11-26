@@ -46,7 +46,7 @@ class MyModelTrainer(ModelTrainer):
                     sorted_params = torch.sort(param.abs().flatten())[0]
                     active_num = (model.mask_dict[name] == 1).int().sum().item()
                     lowest_k = int(f_decay(round_idx, self.args.gamma, self.args.T_end) * active_num)
-                    threshold = sorted_params[lowest_k]  # 获取前k个最小值
+                    threshold = sorted_params[lowest_k] 
                     mask_low = (param.abs() <= threshold).float()
                     low_magnitude_params.append(param * mask_low)
                 else:
@@ -150,8 +150,8 @@ class MyModelTrainer(ModelTrainer):
         model.eval()
 
         metrics = {
-            'test_correct': 0,
-            'test_loss': 0,
+            'Accuracy': 0,
+            'Loss': 0,
             'test_total': 0
         }
 
@@ -167,9 +167,12 @@ class MyModelTrainer(ModelTrainer):
                 _, predicted = torch.max(pred, -1)
                 correct = predicted.eq(target).sum()
 
-                metrics['test_correct'] += correct.item()
-                metrics['test_loss'] += loss.item() * target.size(0)
+                metrics['Accuracy'] += correct.item()
+                metrics['Loss'] += loss.item() * target.size(0)
                 metrics['test_total'] += target.size(0)
+
+        metrics['Accuracy'] /= metrics['test_total'] 
+        metrics['Loss'] /= metrics['test_total'] 
         return metrics
 
     def test_on_the_server(self, train_data_local_dict, test_data_local_dict, device, args=None) -> bool:
