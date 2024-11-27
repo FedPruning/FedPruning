@@ -25,7 +25,14 @@ from api.data_preprocessing.cinic10.data_loader import load_partition_data_cinic
 from api.model.cv.resnet_gn import resnet18 as resnet18_gn
 from api.model.cv.mobilenet import mobilenet
 from api.model.cv.resnet import resnet18, resnet56
-from api.model.cv.mobilenet_v3 import MobileNetV3
+from api.model.nlp.gpt2 import GPT2Model, GPT2Config
+from torchvision.models import mobilenet_v3_small as MobileNetV3
+from torchvision.models import efficientnet_v2_s as EfficientNetV2
+from torchvision.models import squeezenet1_1 as SqueezeNet
+from torchvision.models import shufflenet_v2_x0_5 as ShuffleNet
+from torchvision.models import swin_t as SwinT
+from torchvision.models import vit_b_16 as ViT
+from torchvision.models import mnasnet0_75 as MNASNet
 
 from api.distributed.fedinitprune.FedInitpruneAPI import FedML_init, FedML_FedInitprune_distributed
 from api.pruning.model_pruning import SparseModel
@@ -67,6 +74,9 @@ def add_args(parser):
     parser.add_argument("--comm_round", type=int, default=10, help="how many round of communications we shoud use")
 
     parser.add_argument("--frequency_of_the_test", type=int, default=5, help="the frequency of the algorithms")
+    
+    parser.add_argument('--pruning_strategy', type=str, default="ERK_magnitude",
+        help='the distribution of layerwise density and the pruning method, options["uniform_magnitude", "ER_magnitude", "ERK_magnitude"]')
 
     parser.add_argument('--target_density', type=float, default=0.5,
                         help='pruning target density')
@@ -166,9 +176,27 @@ def create_model(args, model_name, output_dim):
     elif model_name == "resnet56":
         model = resnet56(class_num=output_dim)
     elif model_name == "mobilenet":
-        model = mobilenet(class_num=output_dim)
+        model = mobilenet(class_num = output_dim)
     elif model_name == "mobilenetv3":
-        model = MobileNetV3(model_mode= "SMALL", num_classes=output_dim)
+        model = MobileNetV3(num_classes=output_dim)
+    elif model_name == "efficientnet":
+        model = EfficientNetV2(num_classes=output_dim)
+    elif model_name == "shufflenet":
+        model = ShuffleNet(num_classes=output_dim)
+    elif model_name == "squeezenet":
+        model = SqueezeNet(num_classes=output_dim)
+    elif model_name == "swint":
+        model = SwinT(num_classes=output_dim)
+    elif model_name == "vit":
+        model = ViT(image_size=32, num_classes = output_dim)
+    elif model_name == "mnasnet":
+        model = MNASNet(num_classes = output_dim)
+    elif model_name == "gpt2":
+        GPT2Config["hidden_size"] = args.nlp_hidden_size
+        model = GPT2Model(GPT2Config)
+        logging.info("number of parameters: %.2fM" % (model.get_num_params()/1e6,))
+    else:
+        raise Exception(f"{model_name} is not found !")
     return model
 
 if __name__ == "__main__":
@@ -253,7 +281,7 @@ if __name__ == "__main__":
     # In this case, please use our FedML distributed version (./experiments/distributed_fedprune)
     inner_model = create_model(args, model_name=args.model, output_dim=dataset[7])
     # create the sparse model
-    model = SparseModel(inner_model, target_density=args.target_density, )
+    model = SparseModel(inner_model, target_density=args.target_density, strategy=args.pruning_strategy)
 
     # start distributed training
     FedML_FedInitprune_distributed(

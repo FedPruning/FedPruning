@@ -8,9 +8,10 @@ import logging
 class SparseModel(nn.Module):
     def __init__(self, model,
                  target_density:float=1.,
-                 strategy:str="uniform_magnitude",
+                #  strategy:str="uniform_magnitude",
+                strategy:str="ERK_magnitude",
                  mask_dict: dict = {},
-                 ignore_layers:list[int, str, type]=[0, "bias", nn.BatchNorm2d, "bn", nn.LayerNorm, nn.Embedding, ], 
+                 ignore_layers:list[int, str, type]=["bias", nn.BatchNorm2d, "bn", nn.LayerNorm, nn.Embedding, "features.0", "classifier", -1], 
                  device = None,
                  ):
         super(SparseModel, self).__init__()
@@ -26,9 +27,9 @@ class SparseModel(nn.Module):
 
 
         # layer_set includes all layer names
-        # num_elements_dict includes the number of elements in every layer
+        # layer_shape_dict includes the shape of every layer
         # num_overall_elements is the number of parameters in the whole model
-        self.layer_set, self.num_elements_dict, self.num_overall_elements = self._stat_layer_info()
+        self.layer_set, self.layer_shape_dict, self.num_overall_elements = self._stat_layer_info()
 
         # mask_dict only includes the mask of layer that should be pruned(a.k.a sparse layer)
         # sparse_layer_set the name of the sparse layer
@@ -37,9 +38,12 @@ class SparseModel(nn.Module):
         if self.mask_dict:
             self.layer_density_dict = self._stat_density_info()
             self.sparse_layer_set = set(self.mask_dict.keys())
+            logging.debug("########### call mask dict here #########")
+            logging.info(f"The sparse layers are {self.layer_density_dict}")
         else:
             self.sparse_layer_set = self._determine_sparse_layers()
             self.layer_density_dict, self.mask_dict = self._init_prune()
+            logging.info(f"The sparse layers are {self.layer_density_dict}")
 
 
     def to(self, device, *args, **kwargs):
@@ -53,11 +57,16 @@ class SparseModel(nn.Module):
         ignore_partial_names = []
         ignore_layer_idx = []
         ignore_nn_types = []
+        module_length = 0
+        for _ in self.model.named_modules():
+            module_length += 1
 
         for item in self.ignore_layers:
             if isinstance(item, str):
                 ignore_partial_names.append(item)
             elif isinstance(item, int):
+                if item < 0:
+                    item += module_length
                 ignore_layer_idx.append(item)
             elif type(item) is type:
                 ignore_nn_types.append(item)
@@ -77,27 +86,28 @@ class SparseModel(nn.Module):
             sparse_layer_set = _remove_by_name(sparse_layer_set, partial_name,)
 
         for e, (name, module) in enumerate(self.model.named_modules()):
-            if name in sparse_layer_set:
-                if e in ignore_layer_idx:
-                    sparse_layer_set.remove(name)
-                    continue
+            # if name == "":
+            #     continue
 
-                for t in ignore_nn_types:
-                    if isinstance(module, t):
-                        sparse_layer_set = _remove_by_name(sparse_layer_set, name)
-                        break
+            # if e in ignore_layer_idx:
+            #     sparse_layer_set.remove(name)
+            #     continue
+            for t in ignore_nn_types:
+                if isinstance(module, t):
+                    sparse_layer_set = _remove_by_name(sparse_layer_set, name)
+                    break
         return sparse_layer_set
 
 
     def _stat_layer_info(self):
         layer_set = set()
-        num_elements_dict = {}
+        layer_shape_dict = {}
         num_overall_elements = 0
         for name, weight in self.model.named_parameters():
             layer_set.add(name)
-            num_elements_dict[name] = weight.numel()
+            layer_shape_dict[name] = weight.shape
             num_overall_elements += weight.numel()
-        return layer_set, num_elements_dict, num_overall_elements
+        return layer_set, layer_shape_dict, num_overall_elements
 
     def _stat_density_info(self):
         layer_density_dict = 0
@@ -112,7 +122,7 @@ class SparseModel(nn.Module):
 
     def _init_prune(self, **kwargs):
         layer_density_strategy, pruning_strategy = self.strategy.split("_")
-        layer_density_dict = generate_layer_density_dict(self.num_elements_dict, self.num_overall_elements,self.sparse_layer_set, self.target_density, layer_density_strategy)
+        layer_density_dict = generate_layer_density_dict(self.layer_shape_dict, self.num_overall_elements,self.sparse_layer_set, self.target_density, layer_density_strategy)
         model_mask = pruning(self.model, layer_density_dict, pruning_strategy)
         return layer_density_dict, model_mask
 

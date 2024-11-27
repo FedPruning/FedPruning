@@ -1,16 +1,17 @@
 import torch
 import random
 import numpy as np 
+import logging
 
-def generate_layer_density_dict(num_elements_dict, num_overall_elements, sparse_layer_set, target_density, layer_density_strategy):
+def generate_layer_density_dict(layer_shape_dict, num_overall_elements, sparse_layer_set, target_density, layer_density_strategy):
     # the maximum number of elements
     num_remain_elements = int(target_density * num_overall_elements)
 
     # the number of elements in the dense layer and sparse layer
     num_dense_elements = 0
-    for name, number in num_elements_dict.items():
+    for name, shape in layer_shape_dict.items():
         if name not in sparse_layer_set:
-            num_dense_elements += number
+            num_dense_elements += np.prod(shape)
 
     assert num_remain_elements > num_dense_elements, f"the number of elements({num_dense_elements}) left in dense model is higher than minimum elements  requirement ({num_remain_elements}) under target density {target_density}. Please use higher target density or fewer ignore dense layers "
 
@@ -20,14 +21,19 @@ def generate_layer_density_dict(num_elements_dict, num_overall_elements, sparse_
     if layer_density_strategy == "uniform":
         layer_wise_density = num_remain_sparse_elements/(num_overall_elements - num_dense_elements)
 
-        for name, number in num_elements_dict.items():
+        for name, shape in layer_shape_dict.items():
             if name in sparse_layer_set:
-                assert int(number * layer_wise_density) >= 1 , f"the layer wise density {layer_wise_density} is so small that make {name} to be empty"
+                assert int(np.prod(shape) * layer_wise_density) >= 1 , f"the layer wise density {layer_wise_density} is so small that make {name} to be empty"
 
                 layer_density_dict[name] = layer_wise_density
 
-    elif layer_density_strategy == "erdos-renyi":
-        pass
+    elif layer_density_strategy == "ER":
+        real_density  = num_remain_sparse_elements/(num_overall_elements - num_dense_elements)
+        layer_density_dict = get_erdos_renyi_dist(layer_shape_dict, sparse_layer_set, real_density, False)
+        
+    elif layer_density_strategy == "ERK":
+        real_density  = num_remain_sparse_elements/(num_overall_elements - num_dense_elements)
+        layer_density_dict = get_erdos_renyi_dist(layer_shape_dict, sparse_layer_set, real_density, True)
 
     else:
         raise Exception(f"layer density strategy {layer_density_strategy} is not supported")
@@ -164,3 +170,105 @@ def sparse_growing_step(model, gradients, mask_dict, layer_density_dict):
             _, grow_indices = torch.topk(grad_inactive, k, sorted=False)
             mask_dict[name].view(-1)[inactive_indices[grow_indices.cpu()]] = 1
     return mask_dict
+
+def get_erdos_renyi_dist(layer_shape_dict, sparse_layer_set, target_density, is_kernel: bool = True) :
+    """
+    Get layer-wise densities distributed according to
+    ER or ERK (erdos-renyi or erdos-renyi-kernel).
+
+    Ensures resulting densities do not cross 1
+    for any layer.
+
+    :param masking: Masking instance
+    :param is_kernel: use ERK (True), ER (False)
+    :return: Layer-wise density dict
+    """
+    # Same as Erdos Renyi with modification for conv
+    # initialization used in sparse evolutionary training
+    # scales the number of non-zero weights linearly proportional
+    # to the product of all dimensions, that is input*output
+    # for fully connected layers, and h*w*in_c*out_c for conv
+    # layers.
+    _erk_power_scale = 1.0
+
+    epsilon = 1.0
+    is_epsilon_valid = False
+    # # The following loop will terminate worst case when all masks are in the
+    # custom_sparsity_map. This should probably never happen though, since once
+    # we have a single variable or more with the same constant, we have a valid
+    # epsilon. Note that for each iteration we add at least one variable to the
+    # custom_sparsity_map and therefore this while loop should terminate.
+    _dense_layers = set()
+    while not is_epsilon_valid:
+        # We will start with all layers and try to find right epsilon. However if
+        # any probablity exceeds 1, we will make that layer dense and repeat the
+        # process (finding epsilon) with the non-dense layers.
+        # We want the total number of connections to be the same. Let say we have
+        # for layers with N_1, ..., N_4 parameters each. Let say after some
+        # iterations probability of some dense layers (3, 4) exceeded 1 and
+        # therefore we added them to the dense_layers set. Those layers will not
+        # scale with erdos_renyi, however we need to count them so that target
+        # paratemeter count is achieved. See below.
+        # eps * (p_1 * N_1 + p_2 * N_2) + (N_3 + N_4) =
+        #    (1 - default_sparsity) * (N_1 + N_2 + N_3 + N_4)
+        # eps * (p_1 * N_1 + p_2 * N_2) =
+        #    (1 - default_sparsity) * (N_1 + N_2) - default_sparsity * (N_3 + N_4)
+        # eps = rhs / (\sum_i p_i * N_i) = rhs / divisor.
+
+        divisor = 0
+        rhs = 0
+        raw_probabilities = {}
+        for name, shape in layer_shape_dict.items():
+            if name not in sparse_layer_set:
+                continue
+            n_param = np.prod(shape)
+            n_zeros = int(n_param * (1 - target_density))
+            n_ones = int(n_param * target_density)
+
+            if name in _dense_layers:
+                # See `- default_sparsity * (N_3 + N_4)` part of the equation above.
+                rhs -= n_zeros
+            else:
+                # Corresponds to `(1 - default_sparsity) * (N_1 + N_2)` part of the
+                # equation above.
+                rhs += n_ones
+
+                if is_kernel:
+                    # Erdos-Renyi probability: epsilon * (n_in + n_out / n_in * n_out).
+                    raw_probabilities[name] = (
+                        np.sum(shape) / n_param
+                    ) ** _erk_power_scale
+                    # Note that raw_probabilities[mask] * n_param gives the individual
+                    # elements of the divisor.
+                else:
+                    # Cin and Cout for a conv kernel
+                    n_in, n_out = shape[:2]
+                    raw_probabilities[name] = (n_in + n_out) / (n_in * n_out)
+                divisor += raw_probabilities[name] * n_param
+        # By multipliying individual probabilites with epsilon, we should get the
+        # number of parameters per layer correctly.
+        epsilon = rhs / divisor
+        # If epsilon * raw_probabilities[mask.name] > 1. We set the sparsities of that
+        # mask to 0., so they become part of dense_layers sets.
+        max_prob = np.max(list(raw_probabilities.values()))
+        max_prob_one = max_prob * epsilon
+        if max_prob_one > 1:
+            is_epsilon_valid = False
+            for mask_name, mask_raw_prob in raw_probabilities.items():
+                if mask_raw_prob == max_prob:
+                    logging.info(f"Density of layer:{mask_name} set to 1.0")
+                    _dense_layers.add(mask_name)
+        else:
+            is_epsilon_valid = True
+
+    prob_dict = {}
+    # With the valid epsilon, we can set sparsities of the remaning layers.
+    for name in sparse_layer_set:
+        if name not in _dense_layers:
+            prob = min(epsilon * raw_probabilities[name], 1.)
+        else:
+            prob = 1.0
+
+        prob_dict[name] = prob
+
+    return prob_dict
