@@ -21,10 +21,13 @@ from api.distributed.utils.gpu_mapping import mapping_processes_to_gpu_device_fr
 from api.data_preprocessing.cifar10.data_loader import load_partition_data_cifar10
 from api.data_preprocessing.cifar100.data_loader import load_partition_data_cifar100
 from api.data_preprocessing.cinic10.data_loader import load_partition_data_cinic10
+from api.data_preprocessing.svhn.data_loader import load_partition_data_svhn
+from api.data_preprocessing.tinystories.data_loader import load_partition_data_tinystories
 
 from api.model.cv.resnet_gn import resnet18 as resnet18_gn
 from api.model.cv.mobilenet import mobilenet
 from api.model.cv.resnet import resnet18, resnet56
+from api.model.cv.mobilenet_v3 import MobileNetV3
 
 from api.distributed.fedavg.FedAvgAPI import FedML_init, FedML_FedAvg_distributed
 
@@ -115,44 +118,32 @@ def load_data(args, dataset_name):
 
     if args.data_dir is None:
         args.data_dir = f"./../../../data/{dataset_name}"
-
-    if dataset_name == "cifar10":
-        data_loader = load_partition_data_cifar10
-    elif dataset_name == "cifar100":
-        data_loader = load_partition_data_cifar100
-    elif dataset_name == "cinic10":
-        data_loader = load_partition_data_cinic10
+    
+    if dataset_name == "tinystories":
+        pass
+        # dataset_tuple = load_partition_data_tinystories(args.partition_method, args.partition_alpha, args.client_num_in_total, args.batch_size,  args.dataset_ratio)
     else:
-        data_loader = load_partition_data_cifar10
+        if dataset_name == "cifar10":
+            data_loader = load_partition_data_cifar10
+        elif dataset_name == "cifar100":
+            data_loader = load_partition_data_cifar100
+        elif dataset_name == "cinic10":
+            data_loader = load_partition_data_cinic10
+        elif dataset_name == "svhn":
+            data_loader = load_partition_data_svhn
+        else:
+            data_loader = load_partition_data_cifar10
 
-    (
-        train_data_num,
-        test_data_num,
-        train_data_global,
-        test_data_global,
-        train_data_local_num_dict,
-        train_data_local_dict,
-        test_data_local_dict,
-        class_num,
-    ) = data_loader(
-        args.dataset,
-        args.data_dir,
-        args.partition_method,
-        args.partition_alpha,
-        args.client_num_in_total,
-        args.batch_size,
-        )
-    dataset = [
-        train_data_num,
-        test_data_num,
-        train_data_global,
-        test_data_global,
-        train_data_local_num_dict,
-        train_data_local_dict,
-        test_data_local_dict,
-        class_num,
-    ]
-    return dataset
+        dataset_tuple = data_loader(
+            args.dataset,
+            args.data_dir,
+            args.partition_method,
+            args.partition_alpha,
+            args.client_num_in_total,
+            args.batch_size,
+            )
+        
+    return dataset_tuple
 
 
 def create_model(args, model_name, output_dim):
@@ -166,6 +157,8 @@ def create_model(args, model_name, output_dim):
         model = resnet56(class_num=output_dim)
     elif model_name == "mobilenet":
         model = mobilenet(class_num=output_dim)
+    elif model_name == "mobilenetv3":
+        model = MobileNetV3(model_mode= "SMALL", num_classes=output_dim)
     return model
 
 if __name__ == "__main__":
