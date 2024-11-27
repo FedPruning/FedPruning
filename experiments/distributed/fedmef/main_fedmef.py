@@ -28,7 +28,7 @@ from api.model.nlp.gpt2 import GPT2Model, GPT2Config
 from api.model.cv.resnet_gn import resnet18 as resnet18_gn
 from api.model.cv.mobilenet import mobilenet
 from api.model.cv.resnet import resnet18, resnet56
-from api.model.cv.mobilenet_v3 import MobileNetV3
+from torchvision.models import mobilenet_v3_small as MobileNetV3
 
 from api.distributed.fedmef.FedMefAPI import FedML_init, FedML_FedMef_distributed
 from api.pruning.model_pruning import SparseModel
@@ -90,7 +90,7 @@ def add_args(parser):
     parser.add_argument("--adjust_alpha", type=float, default=0.2, help='the ratio of num elements for adjustments')
     
     parser.add_argument("--enable_sap", type=int, default=1, help="use sap or not")
-    
+
     parser.add_argument("--sap_strategy", type=str, default="mink", help="strategy for sap")
 
     parser.add_argument("--gamma", type=float, default=0.5, help="a sap rate gamma to train")
@@ -190,9 +190,7 @@ def create_model(args, model_name, output_dim):
     elif model_name == "resnet56":
         model = resnet56(class_num=output_dim)
     elif model_name == "mobilenet":
-        model = mobilenet(class_num=output_dim)
-    elif model_name == "mobilenetv3":
-        model = MobileNetV3(model_mode= "SMALL", num_classes=output_dim)
+        model = MobileNetV3(num_classes=output_dim)
     elif model_name == "gpt2":
         GPT2Config["hidden_size"] = args.nlp_hidden_size
         model = GPT2Model(GPT2Config)

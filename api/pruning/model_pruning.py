@@ -10,7 +10,7 @@ class SparseModel(nn.Module):
                  target_density:float=1.,
                  strategy:str="uniform_magnitude",
                  mask_dict: dict = {},
-                 ignore_layers:list[int, str, type]=[0, "bias", nn.BatchNorm2d, "bn", nn.LayerNorm, nn.Embedding, ], 
+                 ignore_layers:list[int, str, type]=[0, "bias", nn.BatchNorm2d, "bn", nn.LayerNorm, nn.Embedding, -1], 
                  device = None,
                  ):
         super(SparseModel, self).__init__()
@@ -40,6 +40,8 @@ class SparseModel(nn.Module):
         else:
             self.sparse_layer_set = self._determine_sparse_layers()
             self.layer_density_dict, self.mask_dict = self._init_prune()
+        
+        logging.info(f"The sparse layers are {self.sparse_layer_set}")
 
 
     def to(self, device, *args, **kwargs):
@@ -53,11 +55,16 @@ class SparseModel(nn.Module):
         ignore_partial_names = []
         ignore_layer_idx = []
         ignore_nn_types = []
+        module_length = 0
+        for _ in self.model.named_modules():
+            module_length += 1
 
         for item in self.ignore_layers:
             if isinstance(item, str):
                 ignore_partial_names.append(item)
             elif isinstance(item, int):
+                if item < 0:
+                    item += module_length
                 ignore_layer_idx.append(item)
             elif type(item) is type:
                 ignore_nn_types.append(item)

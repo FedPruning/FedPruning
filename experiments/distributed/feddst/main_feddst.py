@@ -27,7 +27,7 @@ from api.data_preprocessing.tinystories.data_loader import load_partition_data_t
 from api.model.cv.resnet_gn import resnet18 as resnet18_gn
 from api.model.cv.mobilenet import mobilenet
 from api.model.cv.resnet import resnet18, resnet56
-from api.model.cv.mobilenet_v3 import MobileNetV3
+from torchvision.models import mobilenet_v3_small as MobileNetV3
 
 
 from api.distributed.feddst.FedDSTAPI import FedML_init, FedML_FedDST_distributed
@@ -174,9 +174,7 @@ def create_model(args, model_name, output_dim):
     elif model_name == "resnet56":
         model = resnet56(class_num=output_dim)
     elif model_name == "mobilenet":
-        model = mobilenet(class_num=output_dim)
-    elif model_name == "mobilenetv3":
-        model = MobileNetV3(model_mode= "SMALL", num_classes=output_dim)
+        model = MobileNetV3(num_classes=output_dim)
     return model
 
 if __name__ == "__main__":
