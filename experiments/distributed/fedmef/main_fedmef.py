@@ -23,15 +23,16 @@ from api.data_preprocessing.cifar100.data_loader import load_partition_data_cifa
 from api.data_preprocessing.cinic10.data_loader import load_partition_data_cinic10
 from api.data_preprocessing.svhn.data_loader import load_partition_data_svhn
 from api.data_preprocessing.tinystories.data_loader import load_partition_data_tinystories
+from api.model.nlp.gpt2 import GPT2Model, GPT2Config
 
 from api.model.cv.resnet_gn import resnet18 as resnet18_gn
 from api.model.cv.mobilenet import mobilenet
 from api.model.cv.resnet import resnet18, resnet56
 from api.model.cv.mobilenet_v3 import MobileNetV3
 
-from api.distributed.prunefl.PruneFLAPI import FedML_init, FedML_PruneFL_distributed
+from api.distributed.fedmef.FedMefAPI import FedML_init, FedML_FedMef_distributed
 from api.pruning.model_pruning import SparseModel
-
+from api.standalone.fedmef.sap.sapiter import to_sapit
 
 def add_args(parser):
     """
@@ -48,6 +49,10 @@ def add_args(parser):
     )
 
     parser.add_argument(
+        "--dataset_ratio", type=float, default=0.01, metavar="PA", help="the ratio of subset for the total dataset (default: 0.01). Only appliable for [tinystories, ]"
+    )
+
+    parser.add_argument(
         "--client_num_in_total", type=int, default=10, metavar="NN", help="number of workers in a distributed cluster"
     )
 
@@ -58,12 +63,18 @@ def add_args(parser):
     )
 
     parser.add_argument(
+        "--nlp_hidden_size", type=int, default=256, metavar="N", help="the hidden size for nlp model (default: 256) option: [64, 256, 1024]"
+    )
+
+    parser.add_argument(
         "--num_eval", type=int, default=128, help="the number of the data samples used for eval, -1 is the total testing dataset."
     )
     parser.add_argument('--lr', type=float, default=0.001, metavar='LR',
                         help='learning rate (default: 0.001)')
 
     parser.add_argument("--epochs", type=int, default=5, metavar="EP", help="how many epochs will be trained locally")
+
+    parser.add_argument("--adjustment_epochs", type=int, default=None, help=" the number of local apoches used in model adjustment round, if it is set None, it is equal to the number of epoches for training round" )
 
     parser.add_argument("--comm_round", type=int, default=10, help="how many round of communications we shoud use")
 
@@ -77,8 +88,20 @@ def add_args(parser):
     parser.add_argument('--T_end', type=int, default=100, help='end of time for update')
 
     parser.add_argument("--adjust_alpha", type=float, default=0.2, help='the ratio of num elements for adjustments')
+    
+    parser.add_argument("--enable_sap", type=int, default=1, help="use sap or not")
+    
+    parser.add_argument("--sap_strategy", type=str, default="mink", help="strategy for sap")
 
-    parser.add_argument("--adjustment_epochs", type=int, default=None, help=" the number of local apoches used in model adjustment round, if it is set None, it is equal to the number of epoches for training round" )
+    parser.add_argument("--gamma", type=float, default=0.5, help="a sap rate gamma to train")
+
+    parser.add_argument("--lambda_l2", type=float, default=0.01, help="lambda_l2 of BaE")
+
+    parser.add_argument("--psi_of_lr", type=float, default=1.0, help="weight of adjusted learning rate in BaE")
+
+    parser.add_argument("--max_lr", type=float, default=0.1, help="max learning rate in adjustment")
+
+    parser.add_argument("--enable_dynamic_lowest_k", type=int, default=0, help="is a switch for finding lowest k in training or marking lowest k before training")
 
     # Following arguments are seldom changed
     parser.add_argument(
@@ -90,8 +113,7 @@ def add_args(parser):
             "--gpu_mapping_file",
             type=str,
             default="gpu_mapping.yaml",
-            help="the gpu utilization file for servers and clients. If there is no \
-                            gpu_util_file, gpu will not be used.",
+            help="the gpu utilization file for servers and clients. If there is no gpu_util_file, gpu will not be used.",
         )
 
     parser.add_argument("--gpu_server_num", type=int, default=1, help="gpu_server_num")
@@ -118,6 +140,8 @@ def add_args(parser):
 
     parser.add_argument("--client_optimizer", type=str, default="sgd", help="SGD with momentum; adam")
 
+    parser.add_argument("--growth_data_mode", type=str, default="batch", help=" the number of data samples used for parameter growth, option are [ 'random', 'single', 'batch', 'entire']" )
+
     args = parser.parse_args()
     return args
 
@@ -129,8 +153,8 @@ def load_data(args, dataset_name):
     
 
     if dataset_name == "tinystories":
-        pass
-        # dataset_tuple = load_partition_data_tinystories(args.partition_method, args.partition_alpha, args.client_num_in_total, args.batch_size,  args.dataset_ratio)
+        dataset_tuple = load_partition_data_tinystories(args.partition_method,
+            args.partition_alpha, args.client_num_in_total, args.batch_size,  args.dataset_ratio)
 
     else:
         if dataset_name == "cifar10":
@@ -169,6 +193,10 @@ def create_model(args, model_name, output_dim):
         model = mobilenet(class_num=output_dim)
     elif model_name == "mobilenetv3":
         model = MobileNetV3(model_mode= "SMALL", num_classes=output_dim)
+    elif model_name == "gpt2":
+        GPT2Config["hidden_size"] = args.nlp_hidden_size
+        model = GPT2Model(GPT2Config)
+        logging.info("number of parameters: %.2fM" % (model.get_num_params()/1e6,))
     return model
 
 if __name__ == "__main__":
@@ -177,7 +205,6 @@ if __name__ == "__main__":
         os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
 
     # initialize distributed computing (MPI)
-    # comm MPI communication object, usually used for communication between different processes
     comm, process_id, worker_number = FedML_init()
 
     # parse python script input parameters
@@ -186,7 +213,7 @@ if __name__ == "__main__":
     logging.info(args)
 
     # customize the process name
-    str_process_name = "FedTiny-Clean (distributed):" + str(process_id)
+    str_process_name = "FedMef (distributed):" + str(process_id)
     setproctitle.setproctitle(str_process_name)
 
     # customize the log format
@@ -213,10 +240,12 @@ if __name__ == "__main__":
     if process_id == 0:
         wandb.init(
             project="FedPruning",
-            name="PruneFL_"
+            name="FedMef_"
             + args.dataset 
             + "_"
             + args.model 
+            + "_"
+            + ("dynamic_k" if args.enable_dynamic_lowest_k == 1 else "fixed_k")
             ,
             config=args,
         )
@@ -241,27 +270,26 @@ if __name__ == "__main__":
     [
         train_data_num,
         test_data_num,
-        train_data_global, # None here # dataloader of all train data
-        test_data_global,  # dataloader of all test data
-        train_data_local_num_dict,  # dict key:client id  value: train data count in each client
-        train_data_local_dict,  # dict key:client id  value:dataloader of one client train data
-        test_data_local_dict,  # dict key:client id  value:dataloader of all test data,
-        # only partition train data, each client use same test data
+        train_data_global, # None here 
+        test_data_global,
+        train_data_local_num_dict,
+        train_data_local_dict, 
+        test_data_local_dict, 
         class_num,
     ] = dataset
-
-    # data shape: torch.Size([64, 3, 32, 32]), labels shape: torch.Size([64])
-
 
     # create model.
     # Note if the model is DNN (e.g., ResNet), the training will be very slow.
     # In this case, please use our FedML distributed version (./experiments/distributed_fedprune)
     inner_model = create_model(args, model_name=args.model, output_dim=dataset[7])
+    # add sapit to model
+    if args.enable_sap:
+        inner_model = to_sapit(inner_model, args.sap_strategy, args.gamma, True)
     # create the sparse model
     model = SparseModel(inner_model, target_density=args.target_density, )
 
     # start distributed training
-    FedML_PruneFL_distributed(
+    FedML_FedMef_distributed(
         process_id,
         worker_number,
         device,

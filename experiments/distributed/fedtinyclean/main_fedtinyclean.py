@@ -28,6 +28,7 @@ from api.model.cv.resnet_gn import resnet18 as resnet18_gn
 from api.model.cv.mobilenet import mobilenet
 from api.model.cv.resnet import resnet18, resnet56
 from api.model.nlp.gpt2 import GPT2Model, GPT2Config
+from api.model.cv.mobilenet_v3 import MobileNetV3
 
 from api.distributed.fedtinyclean.FedTinyCleanAPI import FedML_init, FedML_FedTinyClean_distributed
 from api.pruning.model_pruning import SparseModel
@@ -177,6 +178,8 @@ def create_model(args, model_name, output_dim):
         model = resnet56(class_num=output_dim)
     elif model_name == "mobilenet":
         model = mobilenet(class_num=output_dim)
+    elif model_name == "mobilenetv3":
+        model = MobileNetV3(model_mode= "SMALL", num_classes=output_dim)
     elif model_name == "gpt2":
         GPT2Config["hidden_size"] = args.nlp_hidden_size
         model = GPT2Model(GPT2Config)
