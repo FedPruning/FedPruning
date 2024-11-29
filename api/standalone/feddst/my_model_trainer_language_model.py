@@ -47,9 +47,14 @@ class MyModelTrainer(ModelTrainer):
             local_epochs = args.adjustment_epochs if args.adjustment_epochs is not None else args.epochs
         else:
             local_epochs = args.epochs
+        
+        if mode in [2, 3]:
+            A_epochs = local_epochs // 2 if args.A_epochs is None else args.A_epochs
+            first_epochs = min(local_epochs, A_epochs)
+        else:
+            first_epochs = local_epochs
 
-        epoch_loss = []
-        for epoch in range(local_epochs):
+        for epoch in range(first_epochs):
             batch_loss = []
             for batch_idx, batch in enumerate(train_data):
                 tokenized = self.tokenizer(batch['text'], padding=True, return_tensors='pt', max_length=256, truncation=True)['input_ids'].to(device)
@@ -70,23 +75,36 @@ class MyModelTrainer(ModelTrainer):
             # epoch_loss.append(sum(batch_loss) / len(batch_loss))
             # logging.info('Client Index = {}\tEpoch: {}\tLoss: {:.6f}'.format(self.id, epoch, sum(epoch_loss) / len(epoch_loss)))
 
-        # Collect gradients
         if mode in [2, 3]:
             model.zero_grad()
             if args.growth_data_mode == "random":
-                return {name: torch.randn_like(param, device='cpu').clone() for name, param in model.named_parameters() if param.requires_grad}
+                gradients = {name: torch.randn_like(param, device='cpu').clone() for name, param in model.named_parameters() if param.requires_grad}
 
             else:
                 for batch_idx, batch in enumerate(train_data):
                     tokenized = self.tokenizer(batch['text'], padding=True, return_tensors='pt', max_length=256, truncation=True)['input_ids'].to(device)
+                    model.zero_grad()
                     logits, loss = model(tokenized, tokenized)
                     loss.backward()
                     if args.growth_data_mode == "batch":
                         break
-                    
-            gradients = {name: param.grad.data.cpu().clone() for name, param in model.named_parameters() if param.requires_grad}
-            model.zero_grad()
-            return gradients
+                gradients = {name: param.grad.data.cpu().clone() for name, param in model.named_parameters() if param.requires_grad}
+                model.zero_grad()
+
+            # pruning and growing
+            model.adjust_mask_dict(gradients, t=round_idx, T_end=args.T_end, alpha=args.adjust_alpha)
+            model.apply_mask()
+
+        for epoch in range(first_epochs):
+            batch_loss = []
+            for batch_idx, batch in enumerate(train_data):
+                tokenized = self.tokenizer(batch['text'], padding=True, return_tensors='pt', max_length=256, truncation=True)['input_ids'].to(device)
+                model.zero_grad()
+                logits, loss = model(tokenized, tokenized)
+                loss.backward()
+                optimizer.step()
+
+        return model.mask_dict
 
     def test(self, test_data, device, args):
         model = self.model

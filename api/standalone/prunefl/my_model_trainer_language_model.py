@@ -42,6 +42,9 @@ class MyModelTrainer(ModelTrainer):
             optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, self.model.parameters()), lr=args.lr)
         else:
             optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, self.model.parameters()), lr=args.lr, weight_decay=args.wd, amsgrad=True)
+        
+        if mode in [2, 3]:
+            gradients_squared = {name: torch.zeros_like(param, device='cpu') for name, param in model.named_parameters() if param.requires_grad}
 
         if mode in [2, 3]:
             local_epochs = args.adjustment_epochs if args.adjustment_epochs is not None else args.epochs
@@ -49,6 +52,7 @@ class MyModelTrainer(ModelTrainer):
             local_epochs = args.epochs
 
         epoch_loss = []
+        num_steps = 0
         for epoch in range(local_epochs):
             batch_loss = []
             for batch_idx, batch in enumerate(train_data):
@@ -61,32 +65,21 @@ class MyModelTrainer(ModelTrainer):
                 # Uncommet this following line to avoid nan loss
                 # torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
 
+                if mode in [2,3]:
+                    num_steps += 1
+                    for name, param in model.named_parameters():
+                        if param.requires_grad:
+                            gradients_squared[name] += (param.grad.data.cpu().clone()) ** 2
+                
                 optimizer.step()
-                # logging.info('Update Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                #     epoch, (batch_idx + 1) * args.batch_size, len(train_data) * args.batch_size,
-                #            100. * (batch_idx + 1) / len(train_data), loss.item()))
-
-            #     batch_loss.append(loss.item())
-            # epoch_loss.append(sum(batch_loss) / len(batch_loss))
-            # logging.info('Client Index = {}\tEpoch: {}\tLoss: {:.6f}'.format(self.id, epoch, sum(epoch_loss) / len(epoch_loss)))
+            
 
         # Collect gradients
         if mode in [2, 3]:
-            model.zero_grad()
-            if args.growth_data_mode == "random":
-                return {name: torch.randn_like(param, device='cpu').clone() for name, param in model.named_parameters() if param.requires_grad}
+            for name in gradients_squared:
+                gradients_squared[name] /= num_steps
 
-            else:
-                for batch_idx, batch in enumerate(train_data):
-                    tokenized = self.tokenizer(batch['text'], padding=True, return_tensors='pt', max_length=256, truncation=True)['input_ids'].to(device)
-                    logits, loss = model(tokenized, tokenized)
-                    loss.backward()
-                    if args.growth_data_mode == "batch":
-                        break
-                    
-            gradients = {name: param.grad.data.cpu().clone() for name, param in model.named_parameters() if param.requires_grad}
-            model.zero_grad()
-            return gradients
+            return gradients_squared
 
     def test(self, test_data, device, args):
         model = self.model
