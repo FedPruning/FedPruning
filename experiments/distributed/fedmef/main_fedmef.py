@@ -56,7 +56,7 @@ def add_args(parser):
     )
 
     parser.add_argument(
-        "--dataset_ratio", type=float, default=0.01, metavar="PA", help="the ratio of subset for the total dataset (default: 0.01). Only appliable for [tinystories, ]"
+        "--dataset_ratio", type=float, default=0.05, metavar="PA", help="the ratio of subset for the total dataset (default: 0.05). Only appliable for [tinystories, ]"
     )
 
     parser.add_argument(
@@ -99,7 +99,7 @@ def add_args(parser):
 
     parser.add_argument("--adjust_alpha", type=float, default=0.2, help='the ratio of num elements for adjustments')
     
-    parser.add_argument("--enable_sap", type=int, default=1, help="use sap or not")
+    parser.add_argument("--enable_sap", type=int, default=0, help="use sap or not")
 
     parser.add_argument("--sap_strategy", type=str, default="mink", help="strategy for sap")
 
