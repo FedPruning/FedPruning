@@ -117,6 +117,8 @@ class MyModelTrainer(ModelTrainer):
                 # forgotten gradient
                 for batch_idx, (x, labels) in enumerate(forgotten_loader):
                     x, labels = x.to(device), labels.to(device)
+                    if x.size(0) == 1:
+                        continue
                     log_probs = model(x)
                     loss = criterion(log_probs, labels)
                     loss.backward()
