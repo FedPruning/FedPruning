@@ -55,6 +55,11 @@ def add_args(parser):
     )
 
     parser.add_argument(
+        "--dataset_ratio", type=float, default=0.05, metavar="PA", help="the ratio of subset for the total dataset (default: 0.05). Only appliable for [tinystories, ]"
+    )
+
+
+    parser.add_argument(
         "--client_num_in_total", type=int, default=10, metavar="NN", help="number of workers in a distributed cluster"
     )
 
@@ -62,6 +67,10 @@ def add_args(parser):
 
     parser.add_argument(
         "--batch_size", type=int, default=64, metavar="N", help="input batch size for training (default: 64)"
+    )
+
+    parser.add_argument(
+        "--nlp_hidden_size", type=int, default=256, metavar="N", help="the hidden size for nlp model (default: 256) option: [64, 256, 1024]"
     )
 
     parser.add_argument(
@@ -139,8 +148,7 @@ def load_data(args, dataset_name):
     
 
     if dataset_name == "tinystories":
-        pass
-        # dataset_tuple = load_partition_data_tinystories(args.partition_method, args.partition_alpha, args.client_num_in_total, args.batch_size,  args.dataset_ratio)
+        dataset_tuple = load_partition_data_tinystories(args.partition_method, args.partition_alpha, args.client_num_in_total, args.batch_size,  args.dataset_ratio)
 
     else:
         if dataset_name == "cifar10":

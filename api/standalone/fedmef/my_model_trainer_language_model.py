@@ -5,7 +5,7 @@ from torch import nn
 from transformers import AutoTokenizer
 import evaluate
 import numpy as np
-
+from api.pruning.init_scheme import f_decay
 from core.trainer.model_trainer import ModelTrainer
 
 class MyModelTrainer(ModelTrainer):
@@ -14,8 +14,13 @@ class MyModelTrainer(ModelTrainer):
         if dataset_name == "tinystories":
             self.tokenizer = AutoTokenizer.from_pretrained('roneneldan/TinyStories')
             self.tokenizer.pad_token = self.tokenizer.eos_token
-
-        self.rouge = evaluate.load('rouge')
+        
+        self.lambda_l2 = args.lambda_l2
+        self.initial_lr = args.lr
+        self.psi = args.psi_of_lr
+        self.xi = args.max_lr # args.max_lr, at first set initial_lr
+        self.enable_dynamic_lowest_k = args.enable_dynamic_lowest_k
+        self.penalty_indices = {}
 
     def get_model(self):
         return self.model
@@ -26,9 +31,50 @@ class MyModelTrainer(ModelTrainer):
     def set_model_params(self, model_parameters):
         self.model.load_state_dict(model_parameters, strict=False)
 
+    def update_global_penalty_index(self, model, round_idx):
+        global_penalty_indices = {}
+        for name, param in model.named_parameters():
+            if name in model.mask_dict:
+                active_num = (model.mask_dict[name] == 1).int().sum().item()
+                k = int(f_decay(round_idx, self.args.gamma, self.args.T_end) * active_num)
+                _, idx = torch.topk(param.flatten().abs(), k, largest=False)
+                global_penalty_indices[name] = idx
+        self.penalty_indices = global_penalty_indices
+
+    def calc_bae_loss(self, init_loss, round_idx, model):
+        low_magnitude_params = []
+        for name, param in model.named_parameters():
+            if name in model.mask_dict:
+                if self.enable_dynamic_lowest_k:
+                    sorted_params = torch.sort(param.abs().flatten())[0]
+                    active_num = (model.mask_dict[name] == 1).int().sum().item()
+                    lowest_k = int(f_decay(round_idx, self.args.gamma, self.args.T_end) * active_num)
+                    threshold = sorted_params[lowest_k] 
+                    mask_low = (param.abs() <= threshold).float()
+                    low_magnitude_params.append(param * mask_low)
+                else:
+                    low_magnitude_params.append(param.flatten()[self.penalty_indices[name]])
+
+        l2_loss = sum(torch.norm(param, 2) for param in low_magnitude_params)
+        l1_loss = sum(torch.norm(param, 1) for param in low_magnitude_params)
+        total_loss = init_loss + l2_loss
+        return total_loss, l1_loss
+
+    def adjust_learning_rate(self, optimizer, l1_loss, total_round, current_round, current_step, step_per_round):
+        B = step_per_round * total_round
+        b = current_step + step_per_round * current_round
+
+        decay = (2 * B - 2 * b) / (2 * B - b)
+        sigmoid_adjustment = 2 * torch.sigmoid(l1_loss) - 1
+        adjusted_lr = decay * sigmoid_adjustment * self.initial_lr
+
+        for param_group in optimizer.param_groups:
+            final_lr = min(self.xi, max(param_group['lr'], self.psi * adjusted_lr))
+            param_group['lr'] = final_lr
+
     def train(self, train_data, device, args, mode, round_idx = None):
 
-        # mode 0 :  training with mask 
+        # mode 0 : training with mask 
         # mode 1 : training with mask 
         # mode 2 : training with mask, calculate the gradient
         # mode 3 : training with mask, calculate the gradient
@@ -37,12 +83,15 @@ class MyModelTrainer(ModelTrainer):
         model.to(device)
         model.train()
 
-        # train and update
         if args.client_optimizer == "sgd":
             optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, self.model.parameters()), lr=args.lr)
         else:
-            optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, self.model.parameters()), lr=args.lr, weight_decay=args.wd, amsgrad=True)
+            optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, self.model.parameters()), lr=args.lr,
+                                         weight_decay=args.wd, amsgrad=True)
 
+        if not args.enable_dynamic_lowest_k:
+            self.update_global_penalty_index(model, round_idx)
+        
         if mode in [2, 3]:
             local_epochs = args.adjustment_epochs if args.adjustment_epochs is not None else args.epochs
         else:
@@ -55,6 +104,10 @@ class MyModelTrainer(ModelTrainer):
                 tokenized = self.tokenizer(batch['text'], padding=True, return_tensors='pt', max_length=256, truncation=True)['input_ids'].to(device)
                 model.zero_grad()
                 logits, loss = model(tokenized, tokenized)
+
+                loss, l1_loss = self.calc_bae_loss(loss, round_idx, model)
+                self.adjust_learning_rate(optimizer, l1_loss, args.epochs, epoch, batch_idx, len(train_data))
+
                 loss.backward()
                 #self.model.apply_mask_gradients()  # apply pruning mask
                 

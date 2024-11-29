@@ -55,7 +55,7 @@ def add_args(parser):
     )
 
     parser.add_argument(
-        "--dataset_ratio", type=float, default=0.01, metavar="PA", help="the ratio of subset for the total dataset (default: 0.01). Only appliable for [tinystories, ]"
+        "--dataset_ratio", type=float, default=0.05, metavar="PA", help="the ratio of subset for the total dataset (default: 0.05). Only appliable for [tinystories, ]"
     )
 
     parser.add_argument(
