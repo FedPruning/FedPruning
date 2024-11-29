@@ -98,7 +98,7 @@ class FedMefServerManager(ServerManager):
             # convert the mode 
             self.mode = self.mode_convert()
 
-            if self.round_idx == self.round_num:
+            if self.round_idx == self.round_num + 1:
                 # post_complete_message_to_sweep_process(self.args)
                 self.finish()
                 print('here')

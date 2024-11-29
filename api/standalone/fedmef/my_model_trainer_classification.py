@@ -2,7 +2,7 @@ import logging
 
 import torch
 from torch import nn
-from ...pruning.init_scheme import f_decay
+from api.pruning.init_scheme import f_decay
 
 try:
     from core.trainer.model_trainer import ModelTrainer

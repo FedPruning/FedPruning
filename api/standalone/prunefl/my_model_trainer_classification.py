@@ -63,7 +63,6 @@ class MyModelTrainer(ModelTrainer):
                 # Uncommet this following line to avoid nan loss
                 # torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
 
-                optimizer.step()
                 # logging.info('Update Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 #     epoch, (batch_idx + 1) * args.batch_size, len(train_data) * args.batch_size,
                 #            100. * (batch_idx + 1) / len(train_data), loss.item()))
@@ -75,6 +74,8 @@ class MyModelTrainer(ModelTrainer):
                     for name, param in model.named_parameters():
                         if param.requires_grad:
                             gradients_squared[name] += (param.grad.data.cpu().clone()) ** 2
+                
+                optimizer.step()
             epoch_loss.append(sum(batch_loss) / len(batch_loss))
             logging.info('Client Index = {}\tEpoch: {}\tLoss: {:.6f}'.format(self.id, epoch, sum(epoch_loss) / len(epoch_loss)))
 
