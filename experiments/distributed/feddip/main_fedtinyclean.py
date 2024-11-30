@@ -26,7 +26,7 @@ from api.model.cv.resnet_gn import resnet18 as resnet18_gn
 from api.model.cv.mobilenet import mobilenet
 from api.model.cv.resnet import resnet18, resnet56
 
-from api.distributed.fedtinyclean.FedTinyCleanAPI import FedML_init, FedML_FedTinyClean_distributed
+from api.distributed.feddip.FedDIPAPI import FedDIP_init, FedDIP_distributed
 from api.pruning.model_pruning import SparseModel
 
 
@@ -96,7 +96,7 @@ def add_args(parser):
     parser.add_argument("--gpu_num_per_server", type=int, default=4, help="gpu_num_per_server")
 
     parser.add_argument(
-        "--is_mobile", type=int, default=1, help="whether the program is running on the FedML-Mobile server side"
+        "--is_mobile", type=int, default=1, help="whether the program is running on the FedDIP-Mobile server side"
     )
 
     parser.add_argument("--backend", type=str, default="MPI", help="Backend for Server and Client")
@@ -184,7 +184,7 @@ if __name__ == "__main__":
         os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
 
     # initialize distributed computing (MPI)
-    comm, process_id, worker_number = FedML_init()
+    comm, process_id, worker_number = FedDIP_init()
 
     # parse python script input parameters
     parser = argparse.ArgumentParser()
@@ -192,7 +192,7 @@ if __name__ == "__main__":
     logging.info(args)
 
     # customize the process name
-    str_process_name = "FedTiny-Clean (distributed):" + str(process_id)
+    str_process_name = "FedDIP (distributed):" + str(process_id)
     setproctitle.setproctitle(str_process_name)
 
     # customize the log format
@@ -219,7 +219,7 @@ if __name__ == "__main__":
     if process_id == 0:
         wandb.init(
             project="FedPruning",
-            name="FedTiny-Clean_"
+            name="FedDIP_"
             + args.dataset 
             + "_"
             + args.model 
@@ -263,7 +263,7 @@ if __name__ == "__main__":
     model = SparseModel(inner_model, target_density=args.target_density, )
 
     # start distributed training
-    FedML_FedTinyClean_distributed(
+    FedDIP_distributed(
         process_id,
         worker_number,
         device,

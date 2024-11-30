@@ -1,15 +1,15 @@
 
 ## Quick Start
 ```
-CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_fedtinyclean_distributed_pytorch.sh resnet18 cifar10 100 10 200 2 0.1 0.1 --delta_T 10 --T_end 100 --num_eval 128 --frequency_of_the_test 10
+CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_feddip_distributed_pytorch.sh resnet18 cifar10 100 10 200 2 0.1 0.1 --delta_T 10 --T_end 100 --num_eval 128 --frequency_of_the_test 10
 
-CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_fedtinyclean_distributed_pytorch.sh resnet18 cifar10 100 10 500 5 0.1 0.1 --delta_T 10 --T_end 300 --num_eval 128 --frequency_of_the_test 10
+CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_feddip_distributed_pytorch.sh resnet18 cifar10 100 10 500 5 0.1 0.1 --delta_T 10 --T_end 300 --num_eval 128 --frequency_of_the_test 10
 ```
 
 ## Usage
 [$\cdot$] is mandatory arguments, {$\cdot$} is the optional arguments.
 ```
-CUDA_VISIBLE_DEVICES=[gpus] sh run_fedtinyclean_distributed_pytorch.sh [model] [dataset] [client_num_in_total] [client_num_per_round]  [comm_round] [epochs] [target_density] [initial_lr]   {--delta_T , --T_end, --partition_alpha, --num_eval, --frequency_of_the_test}
+CUDA_VISIBLE_DEVICES=[gpus] sh run_feddip_distributed_pytorch.sh [model] [dataset] [client_num_in_total] [client_num_per_round]  [comm_round] [epochs] [target_density] [initial_lr]   {--delta_T , --T_end, --partition_alpha, --num_eval, --frequency_of_the_test}
 ```
 
 where

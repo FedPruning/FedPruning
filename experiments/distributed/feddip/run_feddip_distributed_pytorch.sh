@@ -15,7 +15,7 @@ echo $PROCESS_NUM
 hostname > mpi_host_file
 
 # Initialize the command with mandatory arguments
-command="mpirun -np $PROCESS_NUM -hostfile ./mpi_host_file python3 ./main_fedtinyclean.py \
+command="mpirun -np $PROCESS_NUM -hostfile ./mpi_host_file python3 ./main_feddipclean.py \
   --gpu_mapping_file "gpu_mapping.yaml" \
   --gpu_mapping_key "mapping_default" \
   --model $MODEL \

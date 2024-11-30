@@ -14,7 +14,7 @@ from .message_define import MyMessage
 from .utils import transform_list_to_tensor, post_complete_message_to_sweep_process
 
 
-class FedTinyCleanClientManager(ClientManager):
+class FedDIPClientManager(ClientManager):
     def __init__(self, args, trainer, comm=None, rank=0, size=0, backend="MPI"):
         super().__init__(args, comm, rank, size, backend)
         self.trainer = trainer

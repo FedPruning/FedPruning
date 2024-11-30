@@ -13,7 +13,7 @@ except ImportError:
     from FedPruning.core.distributed.communication.message import Message
     from FedPruning.core.distributed.server.server_manager import ServerManager
 
-class FedTinyCleanServerManager(ServerManager):
+class FedDIPServerManager(ServerManager):
     def __init__(self, args, aggregator, comm=None, rank=0, size=0, backend="MPI", is_preprocessed=False, preprocessed_client_lists=None):
         super().__init__(args, comm, rank, size, backend)
         self.args = args

@@ -13,7 +13,7 @@ try:
 except:
     from FedPruning.api.pruning.init_scheme import sparse_update_step
 
-class FedTinyCleanAPI(object):
+class FedDIPAPI(object):
     def __init__(self, dataset, device, args, model_trainer):
         self.device = device
         self.args = args
