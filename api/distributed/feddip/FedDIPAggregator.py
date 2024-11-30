@@ -47,11 +47,6 @@ class FedDIPAggregator(object):
         self.sample_num_dict[index] = sample_num
         self.flag_client_model_uploaded_dict[index] = True
 
-    def add_local_trained_gradient(self, index, gradient):
-        logging.info("add_gradient. index = %d" % index)
-        self.gradient_dict[index] = gradient
-        self.flag_client_model_uploaded_dict[index] = True
-
     def check_whether_all_receive(self):
         logging.debug("worker_num = {}".format(self.worker_num))
         for idx in range(self.worker_num):
@@ -91,33 +86,6 @@ class FedDIPAggregator(object):
         end_time = time.time()
         logging.info("aggregate time cost: %d" % (end_time - start_time))
         return averaged_params
-
-    def aggregate_gradient(self):
-        start_time = time.time()
-        gradient_list = []
-        training_num = 0
-
-        for idx in range(self.worker_num):
-            gradient_list.append((self.sample_num_dict[idx], self.gradient_dict[idx]))
-            training_num += self.sample_num_dict[idx]
-
-        logging.info("len of self.model_dict[idx] = " + str(len(self.model_dict)))
-
-        # logging.info("################aggregate: %d" % len(gradient_list))
-        (num0, averaged_grad) = gradient_list[0]
-        # logging.info(averaged_grad.keys())
-        for k in averaged_grad.keys():
-            for i in range(0, len(gradient_list)):
-                local_sample_number, local_grad = gradient_list[i]
-                w = local_sample_number / training_num
-                if i == 0:
-                    averaged_grad[k] = local_grad[k].to(self.device) * w
-                else:
-                    averaged_grad[k] += local_grad[k].to(self.device) * w
-
-        end_time = time.time()
-        logging.info("aggregate time cost: %d" % (end_time - start_time))
-        return averaged_grad
 
     def client_sampling(self, round_idx, client_num_in_total, client_num_per_round):
         if client_num_in_total == client_num_per_round:

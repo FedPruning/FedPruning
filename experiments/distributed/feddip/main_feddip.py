@@ -62,20 +62,23 @@ def add_args(parser):
 
     parser.add_argument("--epochs", type=int, default=5, metavar="EP", help="how many epochs will be trained locally")
 
+    parser.add_argument("--A_epochs", type=int, default=None, metavar="EP", help="how many epochs will be trained before incremental training")
+
     parser.add_argument("--comm_round", type=int, default=10, help="how many round of communications we shoud use")
 
     parser.add_argument("--frequency_of_the_test", type=int, default=1, help="the frequency of the algorithms")
 
-    parser.add_argument('--target_density', type=float, default=0.1,
-                        help='pruning target density')
+    parser.add_argument('--init_sparsity', type=float, default=0.5, 
+                        help='pruning initial sparsity')
+    
+    parser.add_argument('--final_sparsity', type=float, default=0.95, 
+                        help='pruning final sparsity')
 
     parser.add_argument('--delta_T', type=int, default=10, help='delta t for update')
 
     parser.add_argument('--T_end', type=int, default=100, help='end of time for update')
 
     parser.add_argument("--adjust_alpha", type=float, default=0.2, help='the ratio of num elements for adjustments')
-    
-    parser.add_argument("--adjustment_epochs", type=int, default=None, help=" the number of local apoches used in model adjustment round, if it is set None, it is equal to the number of epoches for training round" )
 
     # Following arguments are seldom changed
     parser.add_argument(
@@ -114,9 +117,11 @@ def add_args(parser):
     parser.add_argument("--data_dir", type=str, default=None, help="data directory")
 
     parser.add_argument("--client_optimizer", type=str, default="sgd", help="SGD with momentum; adam")
-
-    parser.add_argument("--growth_data_mode", type=str, default="batch", help=" the number of data samples used for parameter growth, option are [ 'random', 'single', 'batch', 'entire']" )
-
+    
+    parser.add_argument('--lambda_shrink', type=float, default=1e-03, help='Penalty affect the shrinkage rate')
+    
+    parser.add_argument("--mu", type=float, default=0.01, help='regularization parameter for proximal term')
+    
     args = parser.parse_args()
     return args
 
@@ -260,7 +265,7 @@ if __name__ == "__main__":
     # In this case, please use our FedML distributed version (./experiments/distributed_fedprune)
     inner_model = create_model(args, model_name=args.model, output_dim=dataset[7])
     # create the sparse model
-    model = SparseModel(inner_model, target_density=args.target_density, )
+    model = SparseModel(inner_model, target_density= 1 - args.init_sparsity, )
 
     # start distributed training
     FedDIP_distributed(

@@ -1,7 +1,7 @@
 import torch
 from typing import Dict, List
 from torch import nn
-from api.pruning.init_scheme import generate_layer_density_dict, pruning, sparse_update_step, sparse_pruning_step, sparse_growing_step
+from api.pruning.init_scheme import generate_layer_density_dict, pruning, reduce_layer_density, sparse_update_step, sparse_pruning_step, sparse_growing_step
 import warnings
 import logging
 
@@ -166,6 +166,21 @@ class SparseModel(nn.Module):
 
     def grow_mask_dict(self, gradients):
         self.mask_dict = sparse_growing_step(self.model, gradients, self.mask_dict, self.layer_density_dict)
+        
+    def reduce_density(self, new_target_density):
+        if new_target_density >= self.target_density:
+            raise ValueError("New target density must be lower than current density")
+            
+        self.target_density = new_target_density
+        
+        self.layer_density_dict, self.mask_dict = reduce_layer_density(
+            self.model,
+            self.num_elements_dict,
+            self.num_overall_elements,
+            self.sparse_layer_set,
+            new_target_density,
+            self.strategy
+        )
 
 ## TODO
 # actual density

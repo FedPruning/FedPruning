@@ -1,3 +1,4 @@
+import copy
 import logging
 
 import torch
@@ -18,6 +19,38 @@ class MyModelTrainer(ModelTrainer):
 
     def set_model_params(self, model_parameters):
         self.model.load_state_dict(model_parameters, strict=False)
+        
+    def proximal_term_compute(self, global_model, local_model):
+        proximal_term = 0.0
+        for weight, weight_t in zip(local_model.parameters(), global_model.parameters()):
+            proximal_term += (weight - weight_t).norm(2)
+        return proximal_term
+    
+    def compute_current_lambda_shrink(self, round_idx, num_segments=20):
+        initial_lambda = 5e-04
+        final_lambda = self.args.lambda_shrink
+        epochs = self.args.epochs
+        step_size = (final_lambda - initial_lambda) / (num_segments - 1)
+        segment_length = epochs // num_segments
+        lambda_schedule = []
+        for i in range(num_segments):
+            if i == 0:
+                current_lambda = 0
+            else:
+                current_lambda = initial_lambda + step_size * (i - 1)
+            lambda_schedule.extend([current_lambda] * segment_length)
+            if i == num_segments - 1:
+                # Adjust the last segment to include the remaining epochs
+                lambda_schedule.extend([current_lambda] * (epochs % num_segments))
+
+        return lambda_schedule[round_idx]
+
+    def prunable_layer_norm(self, current_lambda):
+        norm_sum = 0
+        for name, weight in self.model.named_parameters():
+            if name in self.mask_dict:
+                norm_sum += current_lambda * torch.norm(weight, 2)
+        return norm_sum
 
     def train(self, train_data, device, args, mode, round_idx = None):
 
@@ -26,10 +59,12 @@ class MyModelTrainer(ModelTrainer):
         # mode 2 : training with mask, calculate the gradient
         # mode 3 : training with mask, calculate the gradient
         model = self.model
-
+        global_model = copy.copy(self.model)
+        
         model.to(device)
         model.train()
 
+        
         # train and update
         criterion = nn.CrossEntropyLoss().to(device)
         if args.client_optimizer == "sgd":
@@ -41,54 +76,44 @@ class MyModelTrainer(ModelTrainer):
             local_epochs = args.adjustment_epochs if args.adjustment_epochs is not None else args.epochs
         else:
             local_epochs = args.epochs
+        
+        if mode in [2, 3]:
+            A_epochs = local_epochs // 2 if args.A_epochs is None else args.A_epochs
+            first_epochs = min(local_epochs, A_epochs)
+        else:
+            first_epochs = local_epochs
 
         epoch_loss = []
-        for epoch in range(local_epochs):
+        for epoch in range(first_epochs):
             batch_loss = []
             for batch_idx, (x, labels) in enumerate(train_data):
                 x, labels = x.to(device), labels.to(device)
                 model.zero_grad()
                 log_probs = model(x)
                 loss = criterion(log_probs, labels)
+                proximal_term = self.proximal_term_compute(global_model, log_probs)
+                loss += (self.args.mu / 2) * proximal_term
                 loss.backward()
-                #self.model.apply_mask_gradients()  # apply pruning mask
-                
-                # Uncommet this following line to avoid nan loss
-                # torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
-
                 optimizer.step()
-                # logging.info('Update Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                #     epoch, (batch_idx + 1) * args.batch_size, len(train_data) * args.batch_size,
-                #            100. * (batch_idx + 1) / len(train_data), loss.item()))
-
                 batch_loss.append(loss.item())
             epoch_loss.append(sum(batch_loss) / len(batch_loss))
             logging.info('Client Index = {}\tEpoch: {}\tLoss: {:.6f}'.format(self.id, epoch, sum(epoch_loss) / len(epoch_loss)))
-
-        # Collect gradients
-        if mode in [2, 3]:
-            model.zero_grad()
-            if args.growth_data_mode == "random":
-                return {name: torch.randn_like(param, device='cpu').clone() for name, param in model.named_parameters() if param.requires_grad}
-
-            elif args.growth_data_mode == "single":
-                x, labels = next(iter(train_data))
-                x, labels = x[0].unsqueeze(0).repeat(2, 1, 1, 1).to(device), labels[0].unsqueeze(0).repeat(2).to(device)  # Duplicate the sample to create a pseudo-batch
+            
+        for epoch in range(first_epochs, local_epochs):
+            batch_loss = []
+            for batch_idx, (x, labels) in enumerate(train_data):
+                x, labels = x.to(device), labels.to(device)
+                model.zero_grad()
                 log_probs = model(x)
                 loss = criterion(log_probs, labels)
+                current_lambda = self.compute_current_lambda_shrink(round_idx=round_idx)
+                prunable_layer_norm = self.prunable_layer_norm(current_lambda)
+                loss += prunable_layer_norm
                 loss.backward()
-            else:
-                for batch_idx, (x, labels) in enumerate(train_data):
-                    x, labels = x.to(device), labels.to(device)
-                    log_probs = model(x)
-                    loss = criterion(log_probs, labels)
-                    loss.backward()
-                    if args.growth_data_mode == "batch":
-                        break
-                    
-            gradients = {name: param.grad.data.cpu().clone() for name, param in model.named_parameters() if param.requires_grad}
-            model.zero_grad()
-            return gradients
+                optimizer.step()
+                batch_loss.append(loss.item())
+            epoch_loss.append(sum(batch_loss) / len(batch_loss))
+            logging.info('Client Index = {}\tEpoch: {}\tLoss: {:.6f}'.format(self.id, epoch, sum(epoch_loss) / len(epoch_loss)))
 
     def test(self, test_data, device, args):
         model = self.model

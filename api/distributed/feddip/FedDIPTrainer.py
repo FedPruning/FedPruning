@@ -29,14 +29,14 @@ class FedDIPTrainer(object):
         # self.test_local = self.test_data_local_dict[client_index] # useless 
 
     def train(self, mode, round_idx = None):
-        gradients = self.trainer.train(self.train_local, self.device, self.args, mode, round_idx)
+        self.trainer.train(self.train_local, self.device, self.args, mode, round_idx)
         weights = self.trainer.get_model_params()
 
         # transform Tensor to list
         if self.args.is_mobile == 1:
             weights = transform_tensor_to_list(weights)
 
-        return weights, gradients, self.local_sample_number
+        return weights, self.local_sample_number
 
     # def test(self):
     #     # train data

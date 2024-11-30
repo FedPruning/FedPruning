@@ -81,8 +81,5 @@ class FedDIPClientManager(ClientManager):
 
     def __train(self):
         logging.info("#######training########### round_id = %d" % self.round_idx)
-        weights, gradient, local_sample_num = self.trainer.train(mode = self.mode, round_idx=self.round_idx)
-        if self.mode in [2, 3]:
-            self.send_model_to_server(0, weights, local_sample_num, gradient)
-        else:
-            self.send_model_to_server(0, weights, local_sample_num)
+        weights, local_sample_num = self.trainer.train(mode = self.mode, round_idx=self.round_idx, )
+        self.send_model_to_server(0, weights, local_sample_num)

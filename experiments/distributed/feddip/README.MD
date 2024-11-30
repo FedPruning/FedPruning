@@ -1,15 +1,15 @@
 
 ## Quick Start
 ```
-CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_feddip_distributed_pytorch.sh resnet18 cifar10 100 10 200 2 0.1 0.1 --delta_T 10 --T_end 100 --num_eval 128 --frequency_of_the_test 10
+CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_feddip_distributed_pytorch.sh resnet18 cifar10 100 10 200 2 1 0.05 0.95 --delta_T 10 --T_end 100 --num_eval 128 --frequency_of_the_test 10
 
-CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_feddip_distributed_pytorch.sh resnet18 cifar10 100 10 500 5 0.1 0.1 --delta_T 10 --T_end 300 --num_eval 128 --frequency_of_the_test 10
+CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_feddip_distributed_pytorch.sh resnet18 cifar10 100 10 500 5 3 0.05 0.95 --delta_T 10 --T_end 300 --num_eval 128 --frequency_of_the_test 10
 ```
 
 ## Usage
 [$\cdot$] is mandatory arguments, {$\cdot$} is the optional arguments.
 ```
-CUDA_VISIBLE_DEVICES=[gpus] sh run_feddip_distributed_pytorch.sh [model] [dataset] [client_num_in_total] [client_num_per_round]  [comm_round] [epochs] [target_density] [initial_lr]   {--delta_T , --T_end, --partition_alpha, --num_eval, --frequency_of_the_test}
+CUDA_VISIBLE_DEVICES=[gpus] sh run_feddip_distributed_pytorch.sh [model] [dataset] [client_num_in_total] [client_num_per_round] [comm_round] [epochs] [A_epoches] [init_sparsity] [final_sparsity] {--delta_T --T_end --partition_alpha --num_eval --frequency_of_the_test}
 ```
 
 where
@@ -22,8 +22,9 @@ where
 [client_num_per_round] is the number of clients selected per round.
 [comm_round] is the number of communication rounds.
 [epochs] is the number of local epochs.
-[target_density] is the target density for the sparse model.
-[initial_lr] is the initial learning rate.
+[A_epoches] the number of epochs to train before incremental training.
+[init_sparsity] is the initial sparsity ratio for the sparse model.
+[final_sparsity] is the final sparsity ratio for the sparse model.
 {--delta_T} is the interval rounds between two adjustment round.
 {--T_end} is the end round number for adjustment round.
 {--partition_alpha} refers to the partition alpha, higher partition alpha makes lower degree of data heterogeneity

@@ -8,11 +8,6 @@ import wandb
 
 from .client import Client
 
-try:
-    from api.pruning.init_scheme import sparse_update_step
-except:
-    from FedPruning.api.pruning.init_scheme import sparse_update_step
-
 class FedDIPAPI(object):
     def __init__(self, dataset, device, args, model_trainer):
         self.device = device

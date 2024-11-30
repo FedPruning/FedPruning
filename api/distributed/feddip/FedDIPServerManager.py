@@ -73,19 +73,17 @@ class FedDIPServerManager(ServerManager):
         sender_id = msg_params.get(MyMessage.MSG_ARG_KEY_SENDER)
         model_params = msg_params.get(MyMessage.MSG_ARG_KEY_MODEL_PARAMS)
         local_sample_number = msg_params.get(MyMessage.MSG_ARG_KEY_NUM_SAMPLES)
-        if self.mode in [2, 3]:
-            gradients = msg_params.get(MyMessage.MSG_ARG_KEY_MODEL_GRADIENT)
-            self.aggregator.add_local_trained_gradient(sender_id - 1, gradients)
-            
         self.aggregator.add_local_trained_result(sender_id - 1, model_params, local_sample_number)
+        sparsity_t = self.args.final_sparsity + (self.args.init_sparsity - self.args.final_sparsity) * (
+            (1 - (self.round_idx / self.round_num)) ** 3)
+        
         b_all_received = self.aggregator.check_whether_all_receive()
         logging.info("b_all_received = " + str(b_all_received))
         if b_all_received:
             global_model_params = self.aggregator.aggregate()
             if self.mode in [2, 3]:
-                global_gradient = self.aggregator.aggregate_gradient()
-                # update the global model which is cached at the server side
-                self.aggregator.trainer.model.adjust_mask_dict(global_gradient, t=self.round_idx, T_end=self.args.T_end, alpha=self.args.adjust_alpha)
+                if(sparsity_t <= self.args.final_sparsity):
+                    self.aggregator.trainer.model.reduce_density(1 - sparsity_t)
                 self.aggregator.trainer.model.to(self.aggregator.device)
                 self.aggregator.trainer.model.apply_mask()
                 

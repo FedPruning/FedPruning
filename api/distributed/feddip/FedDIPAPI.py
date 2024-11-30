@@ -1,9 +1,9 @@
 from mpi4py import MPI
 
 from .FedDIPAggregator import FedDIPAggregator
-from .FedDIPCleanTrainer import FedDIPTrainer
+from .FedDIPTrainer import FedDIPTrainer
 from .FedDIPClientManager import FedDIPClientManager
-from .FedDIPCleanServerManager import FedDIPServerManager
+from .FedDIPServerManager import FedDIPServerManager
 
 from api.standalone.feddip.my_model_trainer_classification import MyModelTrainer as MyModelTrainerCLS
 # from ...standalone.fedinitprune.my_model_trainer_nwp import MyModelTrainer as MyModelTrainerNWP

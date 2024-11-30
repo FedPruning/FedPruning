@@ -164,3 +164,26 @@ def sparse_growing_step(model, gradients, mask_dict, layer_density_dict):
             _, grow_indices = torch.topk(grad_inactive, k, sorted=False)
             mask_dict[name].view(-1)[inactive_indices[grow_indices.cpu()]] = 1
     return mask_dict
+
+def reduce_layer_density(model, num_elements_dict, num_overall_elements, 
+                        sparse_layer_set, new_target_density, current_strategy):
+    if new_target_density > 1.0 or new_target_density < 0.0:
+        raise ValueError("Target density must be between 0 and 1")
+    
+    layer_density_strategy, pruning_strategy= current_strategy.split("_")
+    
+    new_layer_density_dict = generate_layer_density_dict(
+        num_elements_dict,
+        num_overall_elements,
+        sparse_layer_set,
+        new_target_density,
+        layer_density_strategy
+    )
+    
+    new_mask_dict = pruning(
+        model,
+        new_layer_density_dict,
+        pruning_strategy
+    )
+    
+    return new_layer_density_dict, new_mask_dict
