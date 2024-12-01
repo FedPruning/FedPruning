@@ -19,17 +19,18 @@ class MyModelTrainer(ModelTrainer):
 
     def set_model_params(self, model_parameters):
         self.model.load_state_dict(model_parameters, strict=False)
-        
+    
+    @torch.no_grad()
     def proximal_term_compute(self, global_model, local_model):
         proximal_term = 0.0
-        for weight, weight_t in zip(local_model.parameters(), global_model.parameters()):
+        for (local_name, weight), (global_name, weight_t) in zip(local_model.named_parameters(), global_model.named_parameters()):
             proximal_term += (weight - weight_t).norm(2)
         return proximal_term
     
-    def compute_current_lambda_shrink(self, round_idx, num_segments=20):
+    def compute_current_lambda_shrink(self, args, round_idx, num_segments=20):
         initial_lambda = 5e-04
-        final_lambda = self.args.lambda_shrink
-        epochs = self.args.epochs
+        final_lambda = args.lambda_shrink
+        epochs = args.comm_round
         step_size = (final_lambda - initial_lambda) / (num_segments - 1)
         segment_length = epochs // num_segments
         lambda_schedule = []
@@ -48,7 +49,7 @@ class MyModelTrainer(ModelTrainer):
     def prunable_layer_norm(self, current_lambda):
         norm_sum = 0
         for name, weight in self.model.named_parameters():
-            if name in self.mask_dict:
+            if name in self.model.mask_dict:
                 norm_sum += current_lambda * torch.norm(weight, 2)
         return norm_sum
 
@@ -62,6 +63,7 @@ class MyModelTrainer(ModelTrainer):
         global_model = copy.copy(self.model)
         
         model.to(device)
+        global_model.to(device)
         model.train()
 
         
@@ -91,8 +93,8 @@ class MyModelTrainer(ModelTrainer):
                 model.zero_grad()
                 log_probs = model(x)
                 loss = criterion(log_probs, labels)
-                proximal_term = self.proximal_term_compute(global_model, log_probs)
-                loss += (self.args.mu / 2) * proximal_term
+                proximal_term = self.proximal_term_compute(global_model, model)
+                loss += (args.mu / 2) * proximal_term
                 loss.backward()
                 optimizer.step()
                 batch_loss.append(loss.item())
@@ -106,7 +108,7 @@ class MyModelTrainer(ModelTrainer):
                 model.zero_grad()
                 log_probs = model(x)
                 loss = criterion(log_probs, labels)
-                current_lambda = self.compute_current_lambda_shrink(round_idx=round_idx)
+                current_lambda = self.compute_current_lambda_shrink(args=args, round_idx=round_idx)
                 prunable_layer_norm = self.prunable_layer_norm(current_lambda)
                 loss += prunable_layer_norm
                 loss.backward()

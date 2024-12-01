@@ -84,8 +84,8 @@ class FedDIPServerManager(ServerManager):
             if self.mode in [2, 3]:
                 if(sparsity_t <= self.args.final_sparsity):
                     self.aggregator.trainer.model.reduce_density(1 - sparsity_t)
-                self.aggregator.trainer.model.to(self.aggregator.device)
-                self.aggregator.trainer.model.apply_mask()
+                    self.aggregator.trainer.model.to(self.aggregator.device)
+                    self.aggregator.trainer.model.apply_mask()
                 
             # logging.info("mask_dict after pruning and growing = " +str(mask_dict))
             self.aggregator.test_on_server_for_all_clients(self.round_idx)
