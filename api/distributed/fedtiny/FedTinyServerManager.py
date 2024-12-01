@@ -81,10 +81,8 @@ class FedTinyServerManager(ServerManager):
 
             # select topk gradients
             if self.args.progressive_pruning == True: 
-                print('Progressive pruning is on.')
+                #print('Progressive pruning is on.')
                 gradients = self.get_topk_gradients(gradients)
-            else:
-                print('Progressive pruning is off.')
             # add gradient
             self.aggregator.add_local_trained_gradient(sender_id - 1, gradients)
             

@@ -123,6 +123,7 @@ def sparse_update_step(model, gradients, mask_dict, t, T_end, alpha):
             # k = f_decay(t, alpha, T_end) * (1 - layer_density_dict[name])
             
             active_num = (mask_dict[name] == 1).int().sum().item()
+            #print(active_num)
             k = int(f_decay(t, alpha, T_end) * active_num)
             # pruning：Find the k  smallest connections among the current active connections and set them to non-active
             active_indices = (mask_dict[name].view(-1) == 1).nonzero(as_tuple=False).view(-1).cpu()
