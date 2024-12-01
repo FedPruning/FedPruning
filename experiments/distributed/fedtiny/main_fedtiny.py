@@ -262,7 +262,11 @@ if __name__ == "__main__":
     inner_model = create_model(args, model_name=args.model, output_dim=dataset[7])
     # create the sparse model
     model = SparseModel(inner_model, target_density=args.target_density, )
-
+    
+    if args.progressive_pruning == True: 
+        print('Progressive pruning is on.')
+    else:
+        print('Progressive pruning is off.')
     # start distributed training
     FedML_FedTiny_distributed(
         process_id,
