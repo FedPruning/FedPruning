@@ -57,8 +57,8 @@ def add_args(parser):
     parser.add_argument(
         "--num_eval", type=int, default=128, help="the number of the data samples used for eval, -1 is the total testing dataset."
     )
-    parser.add_argument('--lr', type=float, default=0.001, metavar='LR',
-                        help='learning rate (default: 0.001)')
+    parser.add_argument('--lr', type=float, default=0.1, metavar='LR',
+                        help='learning rate (default: 0.1)')
 
     parser.add_argument("--epochs", type=int, default=5, metavar="EP", help="how many epochs will be trained locally")
 
@@ -80,6 +80,8 @@ def add_args(parser):
 
     parser.add_argument("--adjust_alpha", type=float, default=0.2, help='the ratio of num elements for adjustments')
 
+    parser.add_argument("--adjustment_epochs", type=int, default=None, help=" the number of local apoches used in model adjustment round, if it is set None, it is equal to the number of epoches for training round" )
+    
     # Following arguments are seldom changed
     parser.add_argument(
         "--gpu_mapping_key", type=str, default="mapping_default", help="the key in gpu utilization file"
@@ -118,7 +120,7 @@ def add_args(parser):
 
     parser.add_argument("--client_optimizer", type=str, default="sgd", help="SGD with momentum; adam")
     
-    parser.add_argument('--lambda_shrink', type=float, default=1e-03, help='Penalty affect the shrinkage rate')
+    parser.add_argument('--lambda_shrink', type=float, default=1e-04, help='Penalty affect the shrinkage rate')
     
     parser.add_argument("--mu", type=float, default=0.01, help='regularization parameter for proximal term')
     

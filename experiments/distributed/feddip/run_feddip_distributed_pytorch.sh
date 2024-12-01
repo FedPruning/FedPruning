@@ -16,7 +16,7 @@ echo $PROCESS_NUM
 hostname > mpi_host_file
 
 # Initialize command with mandatory arguments
-command="mpirun -np $PROCESS_NUM -hostfile ./mpi_host_file python3 ./main_feddipclean.py \
+command="mpirun -np $PROCESS_NUM -hostfile ./mpi_host_file python3 ./main_feddip.py \
   --gpu_mapping_file "gpu_mapping.yaml" \
   --gpu_mapping_key "mapping_default" \
   --model $MODEL \
@@ -25,7 +25,7 @@ command="mpirun -np $PROCESS_NUM -hostfile ./mpi_host_file python3 ./main_feddip
   --client_num_per_round $WORKER_NUM \
   --comm_round $ROUND \
   --epochs $EPOCH \
-  --A_epoches $A_EPOCHS \
+  --A_epochs $A_EPOCHS \
   --init_sparsity $INIT_SPARSITY \
   --final_sparsity $FINAL_SPARSITY"
 
