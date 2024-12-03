@@ -2,6 +2,8 @@ import logging
 
 import torch
 from torch import nn
+from datasets import Dataset
+from torch.utils.data import DataLoader
 from transformers import AutoTokenizer
 import evaluate
 import numpy as np
@@ -26,12 +28,12 @@ class MyModelTrainer(ModelTrainer):
     def set_model_params(self, model_parameters):
         self.model.load_state_dict(model_parameters, strict=False)
 
-    def train(self, train_data, device, args, mode, round_idx = None):
+    def train(self, train_data, forgotten_set, device, args, mode, round_idx = None):
 
-        # mode 0 :  training with mask 
+        # mode 0 : training with mask
         # mode 1 : training with mask 
-        # mode 2 : training with mask, calculate the gradient
-        # mode 3 : training with mask, calculate the gradient
+        # mode 2 : training with mask, calculate mask
+        # mode 3 : training with mask, calculate mask
         model = self.model
 
         model.to(device)
@@ -54,9 +56,12 @@ class MyModelTrainer(ModelTrainer):
         else:
             first_epochs = local_epochs
 
+        new_forgotten_set = []
+        x_dict = {'text': []}
+
+
         for epoch in range(first_epochs):
-            batch_loss = []
-            for batch_idx, batch in enumerate(train_data):
+            for batch, index in train_data:
                 tokenized = self.tokenizer(batch['text'], padding=True, return_tensors='pt', max_length=256, truncation=True)['input_ids'].to(device)
                 model.zero_grad()
                 logits, loss = model(tokenized, tokenized)
@@ -76,35 +81,121 @@ class MyModelTrainer(ModelTrainer):
             # logging.info('Client Index = {}\tEpoch: {}\tLoss: {:.6f}'.format(self.id, epoch, sum(epoch_loss) / len(epoch_loss)))
 
         if mode in [2, 3]:
-            model.zero_grad()
-            if args.growth_data_mode == "random":
-                gradients = {name: torch.randn_like(param, device='cpu').clone() for name, param in model.named_parameters() if param.requires_grad}
-
-            else:
-                for batch_idx, batch in enumerate(train_data):
+            # all predicted result
+            result = []
+            with torch.no_grad():
+                for batch, index in train_data:
                     tokenized = self.tokenizer(batch['text'], padding=True, return_tensors='pt', max_length=256, truncation=True)['input_ids'].to(device)
-                    model.zero_grad()
+                    labels = tokenized[..., 1:].cpu()
+                    logits, loss = model(tokenized, tokenized)
+                    pred_ids = torch.argmax(logits, dim=-1)[..., :-1].cpu()
+                    pad_token_id = self.tokenizer.encode(self.tokenizer.pad_token)[0]
+
+                    for i in range(len(labels)):
+                        hit, total = 0, 0
+                        for j in range(len(labels[i])):
+                            if labels[i][j] != pad_token_id:
+                                total += 1
+                                if labels[i][j] == pred_ids[i][j]:
+                                    hit += 1
+                        if total > 0:
+                            acc = hit / total
+                            if args.forgotten_correct == 1 and acc > args.acc_threshold:
+                                result.append(index[i].item())
+
+            # pruning
+            model.prune_mask_dict(t=round_idx, T_end=args.T_end, alpha=args.adjust_alpha)
+            model.apply_mask()
+
+            # update new forgotten set
+            with torch.no_grad():
+                for batch, index in train_data:
+                    tokenized = self.tokenizer(batch['text'], padding=True, return_tensors='pt', max_length=256, truncation=True)['input_ids'].to(device)
+                    labels = tokenized[..., 1:].cpu()
+                    logits, loss = model(tokenized, tokenized)
+                    pred_ids = torch.argmax(logits, dim=-1)[..., :-1].cpu()
+                    pad_token_id = self.tokenizer.encode(self.tokenizer.pad_token)[0]
+
+                    for i in range(len(labels)):
+                        if index[i].item() in result:
+                            hit, total = 0, 0
+                            for j in range(len(labels[i])):
+                                if labels[i][j] != pad_token_id:
+                                    total += 1
+                                    if labels[i][j] == pred_ids[i][j]:
+                                        hit += 1
+                            if total > 0:
+                                acc = hit / total
+                                if acc < args.acc_threshold:
+                                    new_forgotten_set.append(index[i].item())
+
+            # growing
+            if len(new_forgotten_set) > 1:
+                # Collect (x, y) pairs from the old DataLoader at (batch_idx, i)
+                for batch, index in train_data:
+                    for i in range(len(batch)):
+                        if index[i].item() in new_forgotten_set:
+                            x_dict['text'].append(batch['text'][i])
+
+            if len(x_dict['text']) > 1:
+                # Create a DataLoader for the forgotten_dataset
+                forgotten_dataset = Dataset.from_dict(x_dict)
+                forgotten_loader = DataLoader(forgotten_dataset, batch_size=args.batch_size, shuffle=True)
+
+                model.zero_grad()
+                # forgotten gradient
+                for batch_idx, batch in enumerate(forgotten_loader):
+                    tokenized = self.tokenizer(batch['text'], padding=True, return_tensors='pt', max_length=256, truncation=True)['input_ids'].to(device)
                     logits, loss = model(tokenized, tokenized)
                     loss.backward()
                     if args.growth_data_mode == "batch":
                         break
                 gradients = {name: param.grad.data.cpu().clone() for name, param in model.named_parameters() if param.requires_grad}
+            # batch
+            else:
                 model.zero_grad()
-
-            # pruning and growing
-            model.adjust_mask_dict(gradients, t=round_idx, T_end=args.T_end, alpha=args.adjust_alpha)
+                # forgotten gradient
+                for batch, index in train_data:
+                    tokenized = self.tokenizer(batch['text'], padding=True, return_tensors='pt', max_length=256, truncation=True)['input_ids'].to(device)
+                    logits, loss = model(tokenized, tokenized)
+                    loss.backward()
+                    if args.growth_data_mode == "batch":
+                        break
+                gradients = {name: param.grad.data.cpu().clone() for name, param in model.named_parameters() if param.requires_grad}
+            model.grow_mask_dict(gradients)
             model.apply_mask()
+            model.zero_grad()
 
-        for epoch in range(first_epochs):
-            batch_loss = []
-            for batch_idx, batch in enumerate(train_data):
-                tokenized = self.tokenizer(batch['text'], padding=True, return_tensors='pt', max_length=256, truncation=True)['input_ids'].to(device)
-                model.zero_grad()
-                logits, loss = model(tokenized, tokenized)
-                loss.backward()
-                optimizer.step()
+        # training after adjustment
+        epoch_loss = []
+        if args.forgotten_train == 1 and len(x_dict['text']) > 1:
+            for epoch in range(first_epochs, local_epochs):
+                batch_loss = []
+                for batch_idx, batch in enumerate(forgotten_loader):
+                    model.zero_grad()
+                    tokenized = self.tokenizer(batch['text'], padding=True, return_tensors='pt', max_length=256, truncation=True)['input_ids'].to(device)
+                    logits, loss = model(tokenized, tokenized)
+                    loss.backward()
+                    optimizer.step()
+                    batch_loss.append(loss.item())
+                epoch_loss.append(sum(batch_loss) / len(batch_loss))
+                logging.info('Client Index = {}\tEpoch: {}\tLoss: {:.6f}'.format(self.id, epoch, sum(epoch_loss) / len(epoch_loss)))
+        else:
+            for epoch in range(first_epochs, local_epochs):
+                batch_loss = []
+                for batch, index in train_data:
+                    model.zero_grad()
+                    tokenized = self.tokenizer(batch['text'], padding=True, return_tensors='pt', max_length=256, truncation=True)['input_ids'].to(device)
+                    logits, loss = model(tokenized, tokenized)
+                    loss.backward()
+                    optimizer.step()
+                    batch_loss.append(loss.item())
+                epoch_loss.append(sum(batch_loss) / len(batch_loss))
+                logging.info('Client Index = {}\tEpoch: {}\tLoss: {:.6f}'.format(self.id, epoch, sum(epoch_loss) / len(epoch_loss)))
 
-        return model.mask_dict
+        logging.info('Client Index = {}\told_forgotten_set_len: {}\tnew_forgotten_set_len: {}'.format(self.id, len(forgotten_set), len(x_dict['text'])))
+
+        return model.mask_dict, new_forgotten_set
 
     def test(self, test_data, device, args):
         model = self.model
@@ -121,7 +212,7 @@ class MyModelTrainer(ModelTrainer):
         # references = []
         nlls = []
         with torch.no_grad():
-            for batch_idx, batch in enumerate(test_data):
+            for batch, index in test_data:
                 tokenized = self.tokenizer(batch['text'], padding=True, return_tensors='pt', max_length = 256, truncation = True)['input_ids'].to(device)
                 labels = tokenized[..., 1:].cpu()
                 logits, loss = model(tokenized, tokenized)

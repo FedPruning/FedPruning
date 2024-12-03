@@ -22,7 +22,7 @@ from api.data_preprocessing.cifar10.data_loader import load_partition_data_cifar
 from api.data_preprocessing.cifar100.data_loader import load_partition_data_cifar100
 from api.data_preprocessing.cinic10.data_loader import load_partition_data_cinic10_ust
 from api.data_preprocessing.svhn.data_loader import load_partition_data_svhn_ust
-from api.data_preprocessing.tinystories.data_loader import load_partition_data_tinystories
+from api.data_preprocessing.tinystories.data_loader import load_partition_data_tinystories_ust
 
 from api.model.cv.resnet_gn import resnet18 as resnet18_gn
 from api.model.cv.mobilenet import mobilenet
@@ -102,6 +102,8 @@ def add_args(parser):
 
     parser.add_argument("--forgotten_correct", type=int, default=1, help='using only previously correct prediction')
 
+    parser.add_argument("--acc_threshold", type=float, default=0.3, help='acc_threshold')
+
     parser.add_argument("--adjustment_epochs", type=int, default=None, help=" the number of local apoches used in model adjustment round, if it is set None, it is equal to the number of epoches for training round" )
 
     # Following arguments are seldom changed
@@ -156,7 +158,7 @@ def load_data(args, dataset_name):
     
 
     if dataset_name == "tinystories":
-        dataset_tuple = load_partition_data_tinystories(args.partition_method, args.partition_alpha, args.client_num_in_total, args.batch_size,  args.dataset_ratio)
+        dataset_tuple = load_partition_data_tinystories_ust(args.partition_method, args.partition_alpha, args.client_num_in_total, args.batch_size,  args.dataset_ratio)
     else:
         if dataset_name == "cifar10":
             data_loader = load_partition_data_cifar10_ust

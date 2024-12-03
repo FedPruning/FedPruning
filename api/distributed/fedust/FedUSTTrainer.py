@@ -18,11 +18,18 @@ class FedUSTTrainer(object):
 
         # dataloader to full forgotten_set
         self.forgotten_set_local_dict = {}
-        for k, loader in train_data_local_dict.items():
-            self.forgotten_set_local_dict[k] = []
-            for batch_idx, (x, labels, index) in enumerate(loader):
-                for i in range(x.size(0)):
-                    self.forgotten_set_local_dict[k].append(index[i].item())
+        if args.dataset == "tinystories":
+            for k, loader in train_data_local_dict.items():
+                self.forgotten_set_local_dict[k] = []
+                for batch, index in loader:
+                    for i in range(len(batch)):
+                        self.forgotten_set_local_dict[k].append(index[i].item())
+        else:
+            for k, loader in train_data_local_dict.items():
+                self.forgotten_set_local_dict[k] = []
+                for batch_idx, (x, labels, index) in enumerate(loader):
+                    for i in range(x.size(0)):
+                        self.forgotten_set_local_dict[k].append(index[i].item())
         self.forgotten_local = None
 
         self.device = device
