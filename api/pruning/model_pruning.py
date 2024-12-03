@@ -1,10 +1,14 @@
 import torch
 from typing import Dict, List
 from torch import nn
-from api.pruning.init_scheme import generate_layer_density_dict, pruning, sparse_update_step, sparse_pruning_step, sparse_growing_step
+from api.pruning.init_scheme import generate_layer_density_dict, pruning, sparse_update_step
 import warnings
 import logging
 import re
+
+from FedPruning.api.distributed.fedsgc.message_define import MyMessage
+from FedPruning.api.distributed.fedsgc.utils import transform_list_to_tensor
+
 
 class SparseModel(nn.Module):
     def __init__(self, model,
@@ -181,14 +185,85 @@ class SparseModel(nn.Module):
     def adjust_mask_dict(self, gradients, t, T_end, alpha):
         self.mask_dict = sparse_update_step(self.model, gradients, self.mask_dict, t, T_end, alpha)
 
-    def prune_mask_dict(self, t, T_end, alpha):
-        self.mask_dict = sparse_pruning_step(self.model, self.mask_dict, t, T_end, alpha)
+    def _prune_and_grow(self, weights, masks, local_direction_map, t, alpha, T_end, lambda_k, beta_k,
+                        global_direction_map):
+        if global_direction_map is None:
+            logging.warning("global_direction_map is None. Initializing it as an empty dictionary.")
+            global_direction_map = {}
 
-    def grow_mask_dict(self, gradients):
-        self.mask_dict = sparse_growing_step(self.model, gradients, self.mask_dict, self.layer_density_dict)
+        # Assign global and local direction maps for easier reference.
+        d_t = global_direction_map
+        delta = local_direction_map
 
-## TODO
-# actual density
+        # Iterate through all the keys in the weights dictionary.
+        for key in weights:
+            # Validate if the key exists in masks, global_direction_map (d_t), and local_direction_map (delta).
+            if key not in masks or key not in d_t or key not in delta:
+                logging.warning(f"Skipping invalid or missing key: {key}")
+                continue
+
+            # Retrieve weight, mask, global direction, and local direction for the current key.
+            weight = weights[key]
+            mask = masks[key]
+            global_direction = d_t[key]
+            local_direction = delta[key]
+
+            # Identify active (mask == 1) and inactive (mask == 0) weight indices.
+            active_indices = (mask == 1).nonzero(as_tuple=True)[0]
+            inactive_indices = (mask == 0).nonzero(as_tuple=True)[0]
+            active_num = len(active_indices)
+
+            # Determine the number of weights to prune based on the current round and alpha parameter.
+            k = int(((1 - t / T_end) ** alpha) * active_num)
+
+            # Pruning strategy 1: Prune weights where global_direction aligns oppositely with local_direction.
+            valid_prune_indices_1 = active_indices[global_direction[active_indices] == -local_direction[active_indices]]
+            if len(valid_prune_indices_1) > 0:
+                sorted_active_by_weight_1 = valid_prune_indices_1[
+                    torch.argsort(torch.abs(weight[valid_prune_indices_1]))
+                ]
+                num_to_prune_1 = min(int(lambda_k * k), len(sorted_active_by_weight_1))
+                mask[sorted_active_by_weight_1[:num_to_prune_1]] = 0
+                logging.info(f"Pruned {num_to_prune_1} weights from {key} ([d_t]_i = -[Δ]_i).")
+
+            # Pruning strategy 2: Prune weights where global_direction does not align oppositely with local_direction.
+            valid_prune_indices_2 = active_indices[global_direction[active_indices] != -local_direction[active_indices]]
+            if len(valid_prune_indices_2) > 0:
+                sorted_active_by_weight_2 = valid_prune_indices_2[
+                    torch.argsort(torch.abs(weight[valid_prune_indices_2]))
+                ]
+                num_to_prune_2 = min(int((1 - lambda_k) * k), len(sorted_active_by_weight_2))
+                mask[sorted_active_by_weight_2[:num_to_prune_2]] = 0
+                logging.info(f"Pruned {num_to_prune_2} weights from {key} ([d_t]_i ≠ -[Δ]_i).")
+
+            # Retrieve the gradient for the current key. Skip growing if the gradient is not found.
+            gradient = self.trainer.get_gradient(key)
+            if gradient is None:
+                logging.error(f"Gradient for {key} not found. Skipping growth for this key.")
+                continue
+
+            # Growing strategy 1: Grow weights where global_direction aligns with local_direction.
+            valid_grow_indices_1 = inactive_indices[
+                global_direction[inactive_indices] == local_direction[inactive_indices]]
+            if len(valid_grow_indices_1) > 0:
+                sorted_inactive_by_grad_1 = valid_grow_indices_1[
+                    torch.argsort(torch.abs(gradient[valid_grow_indices_1]), descending=True)
+                ]
+                num_to_grow_1 = min(int(beta_k * k), len(sorted_inactive_by_grad_1))
+                mask[sorted_inactive_by_grad_1[:num_to_grow_1]] = 1
+                logging.info(f"Grew {num_to_grow_1} weights for {key} ([d_t]_i = [Δ]_i).")
+
+            # Growing strategy 2: Grow weights where global_direction does not align with local_direction.
+            valid_grow_indices_2 = inactive_indices[
+                global_direction[inactive_indices] != local_direction[inactive_indices]]
+            if len(valid_grow_indices_2) > 0:
+                sorted_inactive_by_grad_2 = valid_grow_indices_2[
+                    torch.argsort(torch.abs(gradient[valid_grow_indices_2]), descending=True)
+                ]
+                num_to_grow_2 = min(int((1 - beta_k) * k), len(sorted_inactive_by_grad_2))
+                mask[sorted_inactive_by_grad_2[:num_to_grow_2]] = 1
+                logging.info(f"Grew {num_to_grow_2} weights for {key} ([d_t]_i ≠ [Δ]_i).")
+
 
 if __name__ == "__main__":
     from torchvision.models import resnet18
