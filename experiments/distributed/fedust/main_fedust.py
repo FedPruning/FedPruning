@@ -5,6 +5,7 @@ import random
 import socket
 import sys
 
+from torch import nn
 import numpy as np
 import psutil
 import setproctitle
@@ -86,7 +87,7 @@ def add_args(parser):
 
     parser.add_argument("--frequency_of_the_test", type=int, default=5, help="the frequency of the algorithms")
     
-    parser.add_argument('--pruning_strategy', type=str, default="ERK_magnitude",
+    parser.add_argument('--pruning_strategy', type=str, default="uniform_magnitude",
         help='the distribution of layerwise density and the pruning method, options["uniform_magnitude", "ER_magnitude", "ERK_magnitude"]')
 
     parser.add_argument('--target_density', type=float, default=0.5,
@@ -183,10 +184,12 @@ def load_data(args, dataset_name):
 def create_model(args, model_name, output_dim):
     logging.info("create_model. model_name = %s, output_dim = %s" % (model_name, output_dim))
     model = None
+    ignore_layers = [".*bias.*", nn.BatchNorm2d, ".*bn.*", nn.LayerNorm, ".*ln.*"]
     if model_name == "resnet18_gn":
         model = resnet18_gn(num_classes=output_dim)
     if model_name == "resnet18":
         model = resnet18(class_num=output_dim)
+        # ignore_layers += [".*fc.weight.*", "conv1.weight"]
     elif model_name == "resnet56":
         model = resnet56(class_num=output_dim)
     elif model_name == "mobilenet":
@@ -211,7 +214,7 @@ def create_model(args, model_name, output_dim):
         logging.info("number of parameters: %.2fM" % (model.get_num_params()/1e6,))
     else:
         raise Exception(f"{model_name} is not found !")
-    return model
+    return model, ignore_layers
 
 if __name__ == "__main__":
     # quick fix for issue in MacOS environment: https://github.com/openai/spinningup/issues/16
@@ -293,9 +296,10 @@ if __name__ == "__main__":
     # create model.
     # Note if the model is DNN (e.g., ResNet), the training will be very slow.
     # In this case, please use our FedML distributed version (./experiments/distributed_fedprune)
-    inner_model = create_model(args, model_name=args.model, output_dim=dataset[7])
+    inner_model, ignore_layers = create_model(args, model_name=args.model, output_dim=dataset[7])
     # create the sparse model
-    model = SparseModel(inner_model, target_density=args.target_density, strategy=args.pruning_strategy)
+    
+    model = SparseModel(inner_model, target_density=args.target_density, strategy=args.pruning_strategy, ignore_layers=ignore_layers)
 
     # start distributed training
     FedML_FedUST_distributed(

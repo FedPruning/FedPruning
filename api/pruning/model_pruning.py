@@ -4,6 +4,7 @@ from torch import nn
 from api.pruning.init_scheme import generate_layer_density_dict, pruning, sparse_update_step, sparse_pruning_step, sparse_growing_step
 import warnings
 import logging
+import re
 
 class SparseModel(nn.Module):
     def __init__(self, model,
@@ -11,7 +12,7 @@ class SparseModel(nn.Module):
                 #  strategy:str="uniform_magnitude",
                 strategy:str="ERK_magnitude",
                  mask_dict: dict = {},
-                 ignore_layers:list[int, str, type]=["bias", nn.BatchNorm2d, "bn", nn.LayerNorm, "ln", "features.0", "classifier", -1], 
+                 ignore_layers:list[int, str, type]=[".*bias.*", nn.BatchNorm2d, ".*bn.*", nn.LayerNorm, ".*ln.*"], 
                  device = None,
                  ):
         super(SparseModel, self).__init__()
@@ -65,18 +66,16 @@ class SparseModel(nn.Module):
             if isinstance(item, str):
                 ignore_partial_names.append(item)
             elif isinstance(item, int):
-                if item < 0:
-                    item += module_length
                 ignore_layer_idx.append(item)
             elif type(item) is type:
                 ignore_nn_types.append(item)
             else:
                 warnings.warn(f"{type(item)} is not included in int, str and class. Therefore it will be ignored")
 
-        def _remove_by_name(layer_set, partial_name, ):
+        def _remove_by_name(layer_set, partial_name):
             ###### remove partial names (can use prefix)########
             for layer_name in list(layer_set):
-                if partial_name in layer_name:
+                if re.match(partial_name, layer_name) is not None:
                     layer_set.remove(layer_name)
                 # elif partial_name + ".weight" in layer_name:
                 #     sparse_layer_set.remove(layer_name)
@@ -96,6 +95,17 @@ class SparseModel(nn.Module):
                 if isinstance(module, t):
                     sparse_layer_set = _remove_by_name(sparse_layer_set, name)
                     break
+        
+        # total_length = len(sparse_layer_set)
+        # for i in range(len(ignore_layer_idx)):
+        #     if ignore_layer_idx[i] < 0:
+        #         ignore_layer_idx[i] += total_length
+        # # must sorted
+        # ignore_layer_idx.sort(reverse=True)
+        # sparse_layer_set = list(sparse_layer_set)
+        # for idx in ignore_layer_idx:
+        #     sparse_layer_set.pop(idx)
+        # sparse_layer_set = set(sparse_layer_set)
         return sparse_layer_set
 
 
