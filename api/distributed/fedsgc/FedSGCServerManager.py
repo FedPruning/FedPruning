@@ -6,6 +6,7 @@ from .message_define import MyMessage
 from .utils import transform_tensor_to_list, post_complete_message_to_sweep_process
 from api.pruning.init_scheme import generate_layer_density_dict, pruning
 import torch
+import copy
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "../../../")))
 try:
@@ -15,7 +16,7 @@ except ImportError:
     from FedPruning.core.distributed.communication.message import Message
     from FedPruning.core.distributed.server.server_manager import ServerManager
 
-class FedDSTServerManager(ServerManager):
+class FedSGCServerManager(ServerManager):
     def __init__(self, args, aggregator, comm=None, rank=0, size=0, backend="MPI", is_preprocessed=False, preprocessed_client_lists=None):
         super().__init__(args, comm, rank, size, backend)
         self.args = args
@@ -24,7 +25,8 @@ class FedDSTServerManager(ServerManager):
         self.round_idx = 0
         self.is_preprocessed = is_preprocessed
         self.preprocessed_client_lists = preprocessed_client_lists
-        self.mode = 0 
+        self.global_previous_weights = {}  # Used to calculate the global direction map
+        self.mode = 0
 
         # mode 0, the server send both weight and mask to clients, received the weight, perform weight aggregation, if t % \delta t == 0 and t <= t_end, go to mode 2, else, go to mode 1
         # mode 1, the server send weights, received the weights, perform weights aggregation, if t % \delta t == 0 and t <= t_end, go to mode 2, else, go to mode 1
@@ -43,8 +45,10 @@ class FedDSTServerManager(ServerManager):
         global_model_params = self.aggregator.get_global_model_params()
         if self.args.is_mobile == 1:
             global_model_params = transform_tensor_to_list(global_model_params)
+        global_direction_map = None
+        # Send global model parameters and direction map to clients
         for process_id in range(1, self.size):
-            self.send_message_init_config(process_id, global_model_params, client_indexes[process_id - 1], self.mode, self.round_idx)
+            self.send_message_init_config(process_id, global_model_params, global_direction_map, client_indexes[process_id - 1], self.mode, self.round_idx)
 
     def register_message_receive_handlers(self):
         self.register_message_receive_handler(MyMessage.MSG_TYPE_C2S_SEND_MODEL_TO_SERVER,
@@ -83,7 +87,10 @@ class FedDSTServerManager(ServerManager):
         b_all_received = self.aggregator.check_whether_all_receive()
         logging.info("b_all_received = " + str(b_all_received))
         if b_all_received:
+            for key, value in self.aggregator.get_global_model_params().items():
+                self.global_previous_weights[key] = value.clone().detach()
             global_model_params = self.aggregator.aggregate()
+            # self.global_previous_weights = global_model_params
             logging.info(f"current mode for server is {self.mode}, the round is {self.round_idx}")
             if self.mode in [2, 3]:
                 model = self.aggregator.trainer.model
@@ -94,7 +101,6 @@ class FedDSTServerManager(ServerManager):
                 model.mask_dict = new_global_mask
                 model.to(self.aggregator.device)
                 model.apply_mask()
-                
             # logging.info("mask_dict after pruning and growing = " +str(mask_dict))
             self.aggregator.test_on_server_for_all_clients(self.round_idx)
             
@@ -123,6 +129,14 @@ class FedDSTServerManager(ServerManager):
             print('indexes of clients: ' + str(client_indexes))
             print("size = %d" % self.size)
             logging.info(f"current step is {self.round_idx} and the current mode is {self.mode}")
+
+            # Calculate global direction map d_t (Step 8), only needed in mode 2 and mode 3
+            if self.global_previous_weights != {} and self.mode in [2, 3]:
+                global_direction_map = self.calculate_global_direction_map(global_model_params,
+                            self.global_previous_weights)
+            else:
+                global_direction_map = None  # No direction map in the first round or for modes other than 2 and 3
+
             if self.args.is_mobile == 1:
                 global_model_params = transform_tensor_to_list(global_model_params)
             
@@ -132,25 +146,32 @@ class FedDSTServerManager(ServerManager):
                     mask_dict[k] = mask_dict[k].cpu()
                 for receiver_id in range(1, self.size):
                     self.send_message_sync_model_to_client(receiver_id, global_model_params,
-                        client_indexes[receiver_id - 1], self.mode, self.round_idx, mask_dict)
+                        client_indexes[receiver_id - 1], self.mode, self.round_idx, mask_dict, global_direction_map)
             else:
                 for receiver_id in range(1, self.size):
                     self.send_message_sync_model_to_client(receiver_id, global_model_params,
-                        client_indexes[receiver_id - 1], self.mode, self.round_idx)
+                        client_indexes[receiver_id - 1], self.mode, self.round_idx, global_direction_map)
 
+    def calculate_global_direction_map(self, current_weights, previous_weights):
+        global_direction_map = {}
+        for key in current_weights:
+            global_direction_map[key] = torch.sign(current_weights[key] - previous_weights[key])
+        return global_direction_map
 
-    def send_message_init_config(self, receive_id, global_model_params, client_index, mode_code, round_idx):
+    def send_message_init_config(self, receive_id, global_model_params, global_direction_map, client_index, mode_code, round_idx):
         message = Message(MyMessage.MSG_TYPE_S2C_INIT_CONFIG, self.get_sender_id(), receive_id)
         message.add_params(MyMessage.MSG_ARG_KEY_MODEL_PARAMS, global_model_params)
+        message.add_params(MyMessage.MSG_ARG_KEY_GLOBAL_DIRECTION_MAP, global_direction_map)
         message.add_params(MyMessage.MSG_ARG_KEY_CLIENT_INDEX, str(client_index))
         message.add_params(MyMessage.MSG_ARG_KEY_ROUND_IDX, round_idx)
         message.add_params(MyMessage.MSG_ARG_KEY_MODE_CODE, mode_code)
         self.send_message(message)
 
-    def send_message_sync_model_to_client(self, receive_id, global_model_params, client_index, mode_code, round_idx, mask_dict=None):
+    def send_message_sync_model_to_client(self, receive_id, global_model_params, client_index, mode_code, round_idx, mask_dict=None, global_direction_map=None):
         logging.info("send_message_sync_model_to_client. receive_id = %d" % receive_id)
         message = Message(MyMessage.MSG_TYPE_S2C_SYNC_MODEL_TO_CLIENT, self.get_sender_id(), receive_id)
         message.add_params(MyMessage.MSG_ARG_KEY_MODEL_PARAMS, global_model_params)
+        message.add_params(MyMessage.MSG_ARG_KEY_GLOBAL_DIRECTION_MAP, global_direction_map)
         message.add_params(MyMessage.MSG_ARG_KEY_CLIENT_INDEX, str(client_index))
         message.add_params(MyMessage.MSG_ARG_KEY_ROUND_IDX, round_idx)
         message.add_params(MyMessage.MSG_ARG_KEY_MODE_CODE, mode_code)

@@ -5,7 +5,6 @@ import random
 import socket
 import sys
 
-from torch import nn
 import numpy as np
 import psutil
 import setproctitle
@@ -19,11 +18,11 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "")))
 
 from api.distributed.utils.gpu_mapping import mapping_processes_to_gpu_device_from_yaml_file
 
-from api.data_preprocessing.cifar10.data_loader import load_partition_data_cifar10_ust
+from api.data_preprocessing.cifar10.data_loader import load_partition_data_cifar10
 from api.data_preprocessing.cifar100.data_loader import load_partition_data_cifar100
-from api.data_preprocessing.cinic10.data_loader import load_partition_data_cinic10_ust
-from api.data_preprocessing.svhn.data_loader import load_partition_data_svhn_ust
-from api.data_preprocessing.tinystories.data_loader import load_partition_data_tinystories_ust
+from api.data_preprocessing.cinic10.data_loader import load_partition_data_cinic10
+from api.data_preprocessing.svhn.data_loader import load_partition_data_svhn
+from api.data_preprocessing.tinystories.data_loader import load_partition_data_tinystories
 
 from api.model.cv.resnet_gn import resnet18 as resnet18_gn
 from api.model.cv.mobilenet import mobilenet
@@ -37,7 +36,7 @@ from torchvision.models import swin_t as SwinT
 from torchvision.models import vit_b_16 as ViT
 from torchvision.models import mnasnet0_75 as MNASNet
 
-from api.distributed.fedust.FedUSTAPI import FedML_init, FedML_FedUST_distributed
+from api.distributed.fedsgc.FedSGCAPI import FedML_init, FedML_FedSGC_distributed
 from api.pruning.model_pruning import SparseModel
 
 
@@ -59,10 +58,6 @@ def add_args(parser):
         "--client_num_in_total", type=int, default=10, metavar="NN", help="number of workers in a distributed cluster"
     )
 
-    parser.add_argument(
-        "--dataset_ratio", type=float, default=0.05, metavar="PA", help="the ratio of subset for the total dataset (default: 0.05). Only appliable for [tinystories, ]"
-    )
-
     parser.add_argument("--client_num_per_round", type=int, default=10, metavar="NN", help="number of workers")
 
     parser.add_argument(
@@ -71,6 +66,10 @@ def add_args(parser):
 
     parser.add_argument(
         "--nlp_hidden_size", type=int, default=256, metavar="N", help="the hidden size for nlp model (default: 256) option: [64, 256, 1024]"
+    )
+    
+    parser.add_argument(
+        "--dataset_ratio", type=float, default=0.05, metavar="PA", help="the ratio of subset for the total dataset (default: 0.05). Only appliable for [tinystories, ]"
     )
 
     parser.add_argument(
@@ -81,14 +80,13 @@ def add_args(parser):
 
     parser.add_argument("--epochs", type=int, default=5, metavar="EP", help="how many epochs will be trained locally")
 
-    parser.add_argument("--A_epochs", type=int, default=0, metavar="EP", help="how many epochs will be trained before pruning and growing ")
+    parser.add_argument("--A_epochs", type=int, default=None, metavar="EP", help="how many epochs will be trained before pruning and growing ")
+    parser.add_argument('--lambda_param', type=float, default=0.01, help='Lambda (λ) hyperparameter for mask control')
+    parser.add_argument('--beta_param', type=float, default=0.1, help='Beta (β) hyperparameter for weight updates')
 
     parser.add_argument("--comm_round", type=int, default=10, help="how many round of communications we shoud use")
 
     parser.add_argument("--frequency_of_the_test", type=int, default=5, help="the frequency of the algorithms")
-    
-    parser.add_argument('--pruning_strategy', type=str, default="ERK_magnitude",
-        help='the distribution of layerwise density and the pruning method, options["uniform_magnitude", "ER_magnitude", "ERK_magnitude"]')
 
     parser.add_argument('--target_density', type=float, default=0.5,
                         help='pruning target density')
@@ -98,12 +96,6 @@ def add_args(parser):
     parser.add_argument('--T_end', type=int, default=100, help='end of time for update')
 
     parser.add_argument("--adjust_alpha", type=float, default=0.2, help='the ratio of num elements for adjustments')
-
-    parser.add_argument("--forgotten_train", type=int, default=1, help='using only forgotten data after adjustment')
-
-    parser.add_argument("--forgotten_correct", type=int, default=1, help='using only previously correct prediction')
-
-    parser.add_argument("--acc_threshold", type=float, default=0.3, help='acc_threshold')
 
     parser.add_argument("--adjustment_epochs", type=int, default=None, help=" the number of local apoches used in model adjustment round, if it is set None, it is equal to the number of epoches for training round" )
 
@@ -151,7 +143,6 @@ def add_args(parser):
     return args
 
 
-
 def load_data(args, dataset_name):
 
     if args.data_dir is None:
@@ -159,18 +150,19 @@ def load_data(args, dataset_name):
     
 
     if dataset_name == "tinystories":
-        dataset_tuple = load_partition_data_tinystories_ust(args.partition_method, args.partition_alpha, args.client_num_in_total, args.batch_size,  args.dataset_ratio)
+        pass
+        dataset_tuple = load_partition_data_tinystories(args.partition_method, args.partition_alpha, args.client_num_in_total, args.batch_size,  args.dataset_ratio)
     else:
         if dataset_name == "cifar10":
-            data_loader = load_partition_data_cifar10_ust
+            data_loader = load_partition_data_cifar10
         elif dataset_name == "cifar100":
             data_loader = load_partition_data_cifar100
         elif dataset_name == "cinic10":
-            data_loader = load_partition_data_cinic10_ust
+            data_loader = load_partition_data_cinic10
         elif dataset_name == "svhn":
-            data_loader = load_partition_data_svhn_ust
+            data_loader = load_partition_data_svhn
         else:
-            data_loader = load_partition_data_cifar10_ust
+            data_loader = load_partition_data_cifar10
 
         dataset_tuple = data_loader(
             args.dataset,
@@ -183,15 +175,14 @@ def load_data(args, dataset_name):
         
     return dataset_tuple
 
+
 def create_model(args, model_name, output_dim):
     logging.info("create_model. model_name = %s, output_dim = %s" % (model_name, output_dim))
     model = None
-    ignore_layers = [".*bias.*", nn.BatchNorm2d, ".*bn.*", nn.LayerNorm, ".*ln.*"]
     if model_name == "resnet18_gn":
         model = resnet18_gn(num_classes=output_dim)
     if model_name == "resnet18":
         model = resnet18(class_num=output_dim)
-        # ignore_layers += [".*fc.weight.*", "conv1.weight"]
     elif model_name == "resnet56":
         model = resnet56(class_num=output_dim)
     elif model_name == "mobilenet":
@@ -216,7 +207,7 @@ def create_model(args, model_name, output_dim):
         logging.info("number of parameters: %.2fM" % (model.get_num_params()/1e6,))
     else:
         raise Exception(f"{model_name} is not found !")
-    return model, ignore_layers
+    return model
 
 if __name__ == "__main__":
     # quick fix for issue in MacOS environment: https://github.com/openai/spinningup/issues/16
@@ -232,7 +223,7 @@ if __name__ == "__main__":
     logging.info(args)
 
     # customize the process name
-    str_process_name = "FedUST (distributed):" + str(process_id)
+    str_process_name = "FedSGC (distributed):" + str(process_id)
     setproctitle.setproctitle(str_process_name)
 
     # customize the log format
@@ -259,10 +250,10 @@ if __name__ == "__main__":
     if process_id == 0:
         wandb.init(
             project="FedPruning",
-            name="FedUST_"
-            + args.dataset
+            name="FedSGC_"
+            + args.dataset 
             + "_"
-            + args.model
+            + args.model 
             ,
             config=args,
         )
@@ -298,23 +289,22 @@ if __name__ == "__main__":
     # create model.
     # Note if the model is DNN (e.g., ResNet), the training will be very slow.
     # In this case, please use our FedML distributed version (./experiments/distributed_fedprune)
-    inner_model, ignore_layers = create_model(args, model_name=args.model, output_dim=dataset[7])
+    inner_model = create_model(args, model_name=args.model, output_dim=dataset[7])
     # create the sparse model
-    
-    model = SparseModel(inner_model, target_density=args.target_density, strategy=args.pruning_strategy, ignore_layers=ignore_layers)
+    model = SparseModel(inner_model, target_density=args.target_density, )
 
-    # start distributed training
-    FedML_FedUST_distributed(
+    # start training
+    FedML_FedSGC_distributed(
         process_id,
         worker_number,
         device,
         comm,
         model,
-        train_data_num,
+        train_data_num, 
         None, # We do net need train_data_global, so we set it as None
         test_data_global,
         train_data_local_num_dict,
-        train_data_local_dict,
+        train_data_local_dict, 
         None, # We do net need test_data_local_dict, so we set it as None
         args,
     )
