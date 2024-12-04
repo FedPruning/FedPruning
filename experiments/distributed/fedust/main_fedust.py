@@ -87,7 +87,7 @@ def add_args(parser):
 
     parser.add_argument("--frequency_of_the_test", type=int, default=5, help="the frequency of the algorithms")
     
-    parser.add_argument('--pruning_strategy', type=str, default="uniform_magnitude",
+    parser.add_argument('--pruning_strategy', type=str, default="ERK_magnitude",
         help='the distribution of layerwise density and the pruning method, options["uniform_magnitude", "ER_magnitude", "ERK_magnitude"]')
 
     parser.add_argument('--target_density', type=float, default=0.5,

@@ -47,7 +47,7 @@ def pruning(model, layer_density_dict, pruning_strategy, mask_dict=None):
 
     new_mask_dict = {}
 
-    for name, weight in  model.named_parameters():
+    for name, weight in model.named_parameters():
         if name in layer_density_dict:
             density = layer_density_dict[name]
             num_elements = weight.numel() # the total number for elements
@@ -70,9 +70,12 @@ def pruning(model, layer_density_dict, pruning_strategy, mask_dict=None):
     return new_mask_dict
 
 def magnitude_prune(weight, old_mask, num_elements, density):
-    weight = weight * old_mask
-    num_remain = int(num_elements * density)
+    try:
+        weight = weight * old_mask
+    except RuntimeError:
+        weight = weight * old_mask.to(weight.device) 
     
+    num_remain = int(num_elements * density)
     assert old_mask.sum() >= num_remain
 
     x, idx = torch.sort(torch.abs(weight.data.view(-1)), descending=True)

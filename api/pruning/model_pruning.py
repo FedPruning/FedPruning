@@ -1,7 +1,7 @@
 import torch
 from typing import Dict, List
 from torch import nn
-from api.pruning.init_scheme import generate_layer_density_dict, pruning, sparse_update_step
+from api.pruning.init_scheme import generate_layer_density_dict, pruning, sparse_update_step, sparse_pruning_step, sparse_growing_step
 import warnings
 import logging
 import re
@@ -185,8 +185,7 @@ class SparseModel(nn.Module):
     def adjust_mask_dict(self, gradients, t, T_end, alpha):
         self.mask_dict = sparse_update_step(self.model, gradients, self.mask_dict, t, T_end, alpha)
 
-    def _prune_and_grow(self, weights, masks, local_direction_map, t, alpha, T_end, lambda_k, beta_k,
-                        global_direction_map):
+    def prune_and_grow_fedsgc(self, weights, masks, gradient_dict, local_direction_map, t, alpha, T_end, lambda_k, beta_k, global_direction_map):
         if global_direction_map is None:
             logging.warning("global_direction_map is None. Initializing it as an empty dictionary.")
             global_direction_map = {}
@@ -235,12 +234,16 @@ class SparseModel(nn.Module):
                 num_to_prune_2 = min(int((1 - lambda_k) * k), len(sorted_active_by_weight_2))
                 mask[sorted_active_by_weight_2[:num_to_prune_2]] = 0
                 logging.info(f"Pruned {num_to_prune_2} weights from {key} ([d_t]_i ≠ -[Δ]_i).")
-
+            
+            # what is trainer ? 
             # Retrieve the gradient for the current key. Skip growing if the gradient is not found.
-            gradient = self.trainer.get_gradient(key)
-            if gradient is None:
-                logging.error(f"Gradient for {key} not found. Skipping growth for this key.")
-                continue
+            # gradient = self.trainer.get_gradient(key)
+            # if gradient is None:
+            #     logging.error(f"Gradient for {key} not found. Skipping growth for this key.")
+            #     continue
+
+            # add gradients dict 
+            gradient = gradient_dict[key]
 
             # Growing strategy 1: Grow weights where global_direction aligns with local_direction.
             valid_grow_indices_1 = inactive_indices[
@@ -264,7 +267,10 @@ class SparseModel(nn.Module):
                 mask[sorted_inactive_by_grad_2[:num_to_grow_2]] = 1
                 logging.info(f"Grew {num_to_grow_2} weights for {key} ([d_t]_i ≠ [Δ]_i).")
 
-
+    def prune_mask_dict(self, t, T_end, alpha):
+        self.mask_dict = sparse_pruning_step(self.model, self.mask_dict, t, T_end, alpha)
+    def grow_mask_dict(self, gradients):
+        self.mask_dict = sparse_growing_step(self.model, gradients, self.mask_dict, self.layer_density_dict)
 if __name__ == "__main__":
     from torchvision.models import resnet18
     model = resnet18()

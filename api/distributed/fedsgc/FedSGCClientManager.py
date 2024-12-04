@@ -50,7 +50,7 @@ class FedSGCClientManager(ClientManager):
 
         self.trainer.update_model(global_model_params)
         self.trainer.update_dataset(int(client_index))
-        self.__train(msg_params)
+        self.__train()
 
     def handle_message_receive_model_from_server(self, msg_params):
         logging.info("handle_message_receive_model_from_server.")
@@ -59,6 +59,7 @@ class FedSGCClientManager(ClientManager):
         self.mode = msg_params.get(MyMessage.MSG_ARG_KEY_MODE_CODE)
         self.round_idx =  msg_params.get(MyMessage.MSG_ARG_KEY_ROUND_IDX)
 
+        self.global_direction_map = msg_params.get(MyMessage.MSG_ARG_KEY_GLOBAL_DIRECTION_MAP)
         if self.args.is_mobile == 1:
             model_params = transform_list_to_tensor(model_params)
 
@@ -69,7 +70,7 @@ class FedSGCClientManager(ClientManager):
             
         self.trainer.update_model(model_params)
         self.trainer.update_dataset(int(client_index))
-        self.__train(msg_params)
+        self.__train()
         if self.round_idx == self.num_rounds:
             # post_complete_message_to_sweep_process(self.args)
             time.sleep(60)
@@ -83,9 +84,9 @@ class FedSGCClientManager(ClientManager):
         self.send_message(message)
 
 
-    def __train(self, msg_params):
+    def __train(self):
         logging.info("#######training########### round_id = %d" % self.round_idx)
-        weights, masks, local_sample_num = self.trainer.train(mode = self.mode, round_idx=self.round_idx, global_direction_map=msg_params.get(MyMessage.MSG_ARG_KEY_GLOBAL_DIRECTION_MAP) )
+        weights, masks, local_sample_num = self.trainer.train(mode = self.mode, round_idx=self.round_idx, global_direction_map=self.global_direction_map)
         if self.mode in [2, 3]:
             self.send_model_to_server(0, weights, local_sample_num, masks)
         else:
