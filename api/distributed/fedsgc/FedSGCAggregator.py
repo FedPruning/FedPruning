@@ -98,6 +98,7 @@ class FedSGCAggregator(object):
         for idx in range(1, self.worker_num):
             for k, v in self.mask_dict[idx].items():
                 aggr_mask[k] = torch.logical_or(aggr_mask[k].to(self.device),v.to(self.device)).float()
+                # aggr_mask[k] = torch.logical_or(aggr_mask[k],v).float()
         return aggr_mask
 
     def client_sampling(self, round_idx, client_num_in_total, client_num_per_round):
@@ -124,7 +125,7 @@ class FedSGCAggregator(object):
         # if self.trainer.test_on_the_server(self.train_data_local_dict, self.test_data_local_dict, self.device, self.args):
         #     return
 
-        if round_idx % self.args.frequency_of_the_test == 0 or round_idx == self.args.comm_round - 1:
+        if round_idx % self.args.frequency_of_the_test == 0 or round_idx >= self.args.comm_round - 10:
             logging.info("################test_on_server_for_all_clients : {}".format(round_idx))
             # train_num_samples = []
             # train_tot_corrects = []
@@ -152,27 +153,13 @@ class FedSGCAggregator(object):
             # stats = {'training_acc': train_acc, 'training_loss': train_loss}
             # logging.info(stats)
 
-            # test data
-            test_num_samples = []
-            test_tot_corrects = []
-            test_losses = []
-
-            # last five testing should be tested with full testing dataset
-            if round_idx >= (self.args.comm_round - 1 - self.args.frequency_of_the_test * 5) or self.args.num_eval == -1 :
+            # last seven testing should be tested with full testing dataset
+            if round_idx >= self.args.comm_round - 10 or self.args.num_eval == -1 :
                 metrics = self.trainer.test(self.test_global, self.device, self.args)
             else:
                 metrics = self.trainer.test(self.val_global, self.device, self.args)
                 
-            test_tot_correct, test_num_sample, test_loss = metrics['test_correct'], metrics['test_total'], metrics[
-                'test_loss']
-            test_tot_corrects.append(copy.deepcopy(test_tot_correct))
-            test_num_samples.append(copy.deepcopy(test_num_sample))
-            test_losses.append(copy.deepcopy(test_loss))
-
-            # test on test dataset
-            test_acc = sum(test_tot_corrects) / sum(test_num_samples)
-            test_loss = sum(test_losses) / sum(test_num_samples)
-            wandb.log({"Test/Acc": test_acc, "round": round_idx})
-            wandb.log({"Test/Loss": test_loss, "round": round_idx})
-            stats = {'test_acc': test_acc, 'test_loss': test_loss}
-            logging.info(stats)
+            for key in metrics:
+                if key != "test_total":
+                    wandb.log({f"Test/{key}": metrics[key], "round": round_idx})
+            logging.info(metrics)
