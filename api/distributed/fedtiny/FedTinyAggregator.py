@@ -31,15 +31,35 @@ class FedTinyAggregator(object):
         self.model_dict = dict()
         self.gradient_dict = dict()
         self.sample_num_dict = dict()
+        self.BN_params_dict = dict()
+        self.BN_loss_dict = dict()
+        self.global_BN_params = list()
         self.flag_client_model_uploaded_dict = dict()
+        self.flag_client_BN_params_uploaded_dict = dict()
+        self.flag_client_BN_loss_uploaded_dict = dict()
         for idx in range(self.worker_num):
             self.flag_client_model_uploaded_dict[idx] = False
+            self.flag_client_BN_params_uploaded_dict[idx] = False
+            self.flag_client_BN_loss_uploaded_dict[idx] = False
 
     def get_global_model_params(self):
         return self.trainer.get_model_params()
 
     def set_global_model_params(self, model_parameters):
         self.trainer.set_model_params(model_parameters)
+    def set_global_BN_params(self, BN_parameters):
+        self.global_BN_params = BN_parameters
+
+    def add_local_trained_BN_params(self, index, bn_params_list, sample_num):
+        logging.info("add_BN_params. index = %d" % index)
+        self.BN_params_dict[index] = bn_params_list
+        self.sample_num_dict[index] = sample_num
+        self.flag_client_BN_params_uploaded_dict[index] = True
+
+    def add_local_trained_BN_loss(self, index, bn_loss_list):
+        logging.info("add_BN_loss. index = %d" % index)
+        self.BN_loss_dict[index] = bn_loss_list
+        self.flag_client_BN_loss_uploaded_dict[index] = True
 
     def add_local_trained_result(self, index, model_params, sample_num):
         logging.info("add_model. index = %d" % index)
@@ -60,6 +80,70 @@ class FedTinyAggregator(object):
         for idx in range(self.worker_num):
             self.flag_client_model_uploaded_dict[idx] = False
         return True
+    def check_whether_BN_params_all_receive(self):
+        logging.debug("worker_num = {}".format(self.worker_num))
+        for idx in range(self.worker_num):
+            if not self.flag_client_BN_params_uploaded_dict[idx]:
+                return False
+        for idx in range(self.worker_num):
+            self.flag_client_BN_params_uploaded_dict[idx] = False
+        return True
+    
+    def check_whether_BN_loss_all_receive(self):
+        logging.debug("worker_num = {}".format(self.worker_num))
+        for idx in range(self.worker_num):
+            if not self.flag_client_BN_loss_uploaded_dict[idx]:
+                return False
+        for idx in range(self.worker_num):
+            self.flag_client_BN_loss_uploaded_dict[idx] = False
+        return True
+    def aggregate_BN_params(self):
+        start_time = time.time()
+        BN_params_list = []
+        training_num = 0
+
+        for idx in range(self.worker_num):
+            # if self.args.is_mobile == 1:
+            #     self.BN_params_dict[idx] = transform_list_to_tensor(self.BN_params_dict[idx])
+            BN_params_list.append((self.sample_num_dict[idx], self.BN_params_dict[idx]))
+            training_num += self.sample_num_dict[idx]
+
+        logging.info("len of self.BN_params_dict[idx] = " + str(len(self.BN_params_dict)))
+
+        # logging.info("################aggregate: %d" % len(model_list))
+        (num0, averaged_params) = BN_params_list[0]
+        print(f"averaged_params is {averaged_params}")
+        for c in range(0, len(averaged_params)):
+            for k in averaged_params[c].keys():
+                for i in range(0, len(BN_params_list)):
+                    local_sample_number, local_BN_params = BN_params_list[i]
+                    w = local_sample_number / training_num
+                    if i == 0:
+                        averaged_params[c][k] = local_BN_params[c][k] * w
+                    else:
+                        averaged_params[c][k] += local_BN_params[c][k] * w
+
+
+        # update the global model which is cached at the server side
+        self.set_global_BN_params(averaged_params)
+
+        end_time = time.time()
+        logging.info("aggregate BN params time cost: %d" % (end_time - start_time))
+        return averaged_params
+    def aggregate_BN_loss(self):
+        BN_loss_list = []
+        #for c in 
+        for idx in range(self.worker_num):
+            BN_loss_list.append((self.BN_loss_dict[idx]))
+        averaged_loss = BN_loss_list[0]
+        for c in range(len(averaged_loss)):
+            for i in range(0, len(BN_loss_list)):
+                if i == 0:
+                    averaged_loss[c] = BN_loss_list[i][c]
+                else:
+                    averaged_loss[c] += BN_loss_list[i][c]
+        Averaged_loss = [i/len(BN_loss_list) for i in averaged_loss]
+        return Averaged_loss
 
     def aggregate(self):
         start_time = time.time()

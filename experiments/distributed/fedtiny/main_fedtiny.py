@@ -11,7 +11,7 @@ import setproctitle
 import torch
 import wandb
 
-# add the FedML root directory to the python path
+ # add the FedML root directory to the python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "./../../../../")))
 sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "./../../../")))
 sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "")))
@@ -117,7 +117,10 @@ def add_args(parser):
 
     parser.add_argument("--growth_data_mode", type=str, default="batch", help=" the number of data samples used for parameter growth, option are [ 'random', 'single', 'batch', 'entire']" )
     
-    parser.add_argument('--progressive_pruning', type=bool, default=True, help='the switch of progressive pruning module, true for open and false for close')
+    parser.add_argument('--progressive_pruning', type=str, default='off', help='the switch of progressive pruning module, true for open and false for close')
+    parser.add_argument('--ABNS', type=str, default='off', help='the switch of Adaptive BN Selection module, true for open and false for close')
+    parser.add_argument('--ABNS_num_of_candidates', type=int, default=1, help='the num_of_candidates in Adaptive BN Selection module')
+    
     args = parser.parse_args()
     return args
 
@@ -259,14 +262,50 @@ if __name__ == "__main__":
     # create model.
     # Note if the model is DNN (e.g., ResNet), the training will be very slow.
     # In this case, please use our FedML distributed version (./experiments/distributed_fedprune)
+    output_dim_global = dataset[7]
     inner_model = create_model(args, model_name=args.model, output_dim=dataset[7])
     # create the sparse model
     model = SparseModel(inner_model, target_density=args.target_density, )
-    
+    # print(f"the value of progressive_pruning is {args.progressive_pruning}, the type is {type(args.progressive_pruning)}")
+
+    #----------convert ABNS and progressive_pruning to bool type
+    if args.progressive_pruning == 'off':
+        args.progressive_pruning = False
+    elif args.progressive_pruning == 'on':
+        args.progressive_pruning = True
+    else:
+        args.progressive_pruning = False
+    if args.ABNS == 'off':
+        args.ABNS = False
+    elif args.ABNS == 'on':
+        args.ABNS = True
+    else:
+        args.ABNS = False
+
     if args.progressive_pruning == True: 
         print('Progressive pruning is on.')
     else:
         print('Progressive pruning is off.')
+    
+    #args.ABNS = False
+    if args.ABNS == True:
+        if type(args.ABNS_num_of_candidates) == int:
+            print('ABNS is on. The number of candidates in ABNS is', args.ABNS_num_of_candidates)
+            # model_list = list()
+            # for i in range(int(args.ABNS_num_of_candidates)):
+            #     random.seed(i)
+            #     np.random.seed(i)
+            #     torch.manual_seed(i)
+            #     torch.cuda.manual_seed_all(i)
+            #     # create the sparse model
+            #     inner_model_tmp = create_model(args, model_name=args.model, output_dim=dataset[7])
+            #     model_list.append(SparseModel(inner_model_tmp, target_density=args.target_density, ))
+                #print(f"The type is {type(model_params)}, the params of model {i} is {model_params}")
+        else:
+            print('ABNS is off.')
+    else:
+            print('ABNS is off.')
+    #print(abcd)
     # start distributed training
     FedML_FedTiny_distributed(
         process_id,
@@ -281,4 +320,5 @@ if __name__ == "__main__":
         train_data_local_dict, 
         None, # We do net need test_data_local_dict, so we set it as None
         args,
+        output_dim_global
     )

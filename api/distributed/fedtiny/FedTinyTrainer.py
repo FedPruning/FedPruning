@@ -37,7 +37,24 @@ class FedTinyTrainer(object):
             weights = transform_tensor_to_list(weights)
 
         return weights, gradients, self.local_sample_number
+    def train_BN(self):
+        bn_parameters = self.trainer.train_BN(self.train_local, self.device, self.args)
 
+        return bn_parameters, self.local_sample_number
+
+    def test(self):
+        # train data
+        train_metrics = self.trainer.test(self.train_local, self.device, self.args)
+        train_tot_correct, train_num_sample, train_loss = train_metrics['test_correct'], \
+                                                          train_metrics['test_total'], train_metrics['test_loss']
+
+        # # test data
+        # test_metrics = self.trainer.test(self.test_local, self.device, self.args)
+        # test_tot_correct, test_num_sample, test_loss = test_metrics['test_correct'], \
+        #                                                   test_metrics['test_total'], test_metrics['test_loss']
+
+        return train_tot_correct, train_loss, train_num_sample
+    
     # def test(self):
     #     # train data
     #     train_metrics = self.trainer.test(self.train_local, self.device, self.args)

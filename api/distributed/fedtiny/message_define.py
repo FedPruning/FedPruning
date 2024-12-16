@@ -6,11 +6,13 @@ class MyMessage(object):
     MSG_TYPE_S2C_INIT_CONFIG = 1
     MSG_TYPE_S2C_SYNC_MODEL_TO_CLIENT = 2
     MSG_TYPE_S2C_SYNC_MODEL_WITH_MASK_TO_CLIENT = 3
-
+    MSG_TYPE_S2C_ABNS = 6
+    MSG_TYPE_S2C_SYNC_BN_PARAMS_TO_CLIENT = 8
     # client to server
     MSG_TYPE_C2S_SEND_MODEL_TO_SERVER = 4
     MSG_TYPE_C2S_SEND_MODEL_WITH_GRADIENT_TO_SERVER = 5
-
+    MSG_TYPE_C2S_SEND_BN_PARAMS_TO_SERVER = 7
+    MSG_TYPE_C2S_SEND_BN_LOSS_TO_SERVER = 9
     MSG_ARG_KEY_TYPE = "msg_type"
     MSG_ARG_KEY_SENDER = "sender"
     MSG_ARG_KEY_RECEIVER = "receiver"
@@ -25,8 +27,11 @@ class MyMessage(object):
     MSG_ARG_KEY_CLIENT_INDEX = "client_idx"
 
     MSG_ARG_KEY_MODE_CODE = "mode_code"
-    MSG_ARG_KEY_ROUND_IDX = "round_idx" 
-
+    MSG_ARG_KEY_ROUND_IDX = "round_idx"
+    
+    MSG_ARG_KEY_ABNS_SEED = "ABNS_seed" 
+    MSG_ARG_KEY_BN_PARAMS = "BN_params"
+    MSG_ARG_KEY_BN_LOSS_LIST = "BN_loss_list"
     # MSG_ARG_KEY_TRAIN_CORRECT = "train_correct"
     # MSG_ARG_KEY_TRAIN_ERROR = "train_error"
     # MSG_ARG_KEY_TRAIN_NUM = "train_num_sample"

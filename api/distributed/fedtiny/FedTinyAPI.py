@@ -30,6 +30,7 @@ def FedML_FedTiny_distributed(
     train_data_local_dict,
     test_data_local_dict,
     args,
+    output_dim_global,
     model_trainer=None,
     preprocessed_sampling_lists=None,
 ):
@@ -47,6 +48,7 @@ def FedML_FedTiny_distributed(
             train_data_local_dict,
             test_data_local_dict,
             train_data_local_num_dict,
+            output_dim_global,
             model_trainer,
             preprocessed_sampling_lists,
         )
@@ -62,7 +64,8 @@ def FedML_FedTiny_distributed(
             train_data_local_num_dict,
             train_data_local_dict,
             test_data_local_dict,
-            model_trainer,
+            output_dim_global,
+            model_trainer,   
         )
 
 
@@ -79,6 +82,7 @@ def init_server(
     train_data_local_dict,
     test_data_local_dict,
     train_data_local_num_dict,
+    output_dim_global,
     model_trainer,
     preprocessed_sampling_lists=None,
 ):
@@ -105,11 +109,12 @@ def init_server(
     # start the distributed training
     backend = args.backend
     if preprocessed_sampling_lists is None:
-        server_manager = FedTinyServerManager(args, aggregator, comm, rank, size, backend)
+        server_manager = FedTinyServerManager(args, aggregator,output_dim_global, comm, rank, size, backend)
     else:
         server_manager = FedTinyServerManager(
             args,
             aggregator,
+            output_dim_global,
             comm,
             rank,
             size,
@@ -117,8 +122,16 @@ def init_server(
             is_preprocessed=True,
             preprocessed_client_lists=preprocessed_sampling_lists,
         )
-    server_manager.send_init_msg()
-    server_manager.run()
+    if args.ABNS == True:
+        #print('ABNS is on.')
+        server_manager.send_ABNS_msg()
+        server_manager.send_ABNS_info()
+        server_manager.receive_BN_loss()
+        #if server_manager.flag_ABNS_complete == True:
+        server_manager.run()
+    else:
+        server_manager.send_init_msg()
+        server_manager.run()
 
 
 def init_client(
@@ -132,6 +145,7 @@ def init_client(
     train_data_local_num_dict,
     train_data_local_dict,
     test_data_local_dict,
+    output_dim_global,
     model_trainer=None,
 ):
     client_index = process_id - 1
@@ -154,5 +168,8 @@ def init_client(
         args,
         model_trainer,
     )
-    client_manager = FedTinyClientManager(args, trainer, comm, process_id, size, backend)
+    client_manager = FedTinyClientManager(args, trainer,  output_dim_global, comm, process_id, size, backend)
+    # if args.ABNS == True:
+    #     #print('ABNS is on.')
+    #     client_manager.C2Ssend_ABNS_msg()
     client_manager.run()

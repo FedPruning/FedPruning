@@ -27,6 +27,9 @@ class MyModelTrainer(ModelTrainer):
         # mode 3 : training with mask, calculate the gradient
         model = self.model
 
+        for name, param in model.named_parameters():
+            param.requires_grad = True
+
         model.to(device)
         model.train()
 
@@ -89,6 +92,116 @@ class MyModelTrainer(ModelTrainer):
             gradients = {name: param.grad.data.cpu().clone() for name, param in model.named_parameters() if param.requires_grad}
             model.zero_grad()
             return gradients
+
+    def train_BN(self, train_data, device, args):
+
+
+        model = self.model
+        # Freeze all parameters except those in the newly added BN layer
+        for name, param in model.named_parameters():
+            if "bn" not in name:
+                param.requires_grad = False
+        # Freeze all parameters except the newly added BN layer
+
+        model.to(device)
+        model.train()
+
+        # train and update
+        criterion = nn.CrossEntropyLoss().to(device)
+        if args.client_optimizer == "sgd":
+            optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, self.model.parameters()), lr=args.lr)
+        else:
+            optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, self.model.parameters()), lr=args.lr,
+                                         weight_decay=args.wd, amsgrad=True)
+
+        epoch_loss = []
+        for epoch in range(1):
+            batch_loss = []
+            for batch_idx, (x, labels) in enumerate(train_data):
+                x, labels = x.to(device), labels.to(device)
+                model.zero_grad()
+                log_probs = model(x)
+                loss = criterion(log_probs, labels)
+                loss.backward()
+                #self.model.apply_mask_gradients()  # apply pruning mask
+                
+                # Uncommet this following line to avoid nan loss
+                # torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
+
+                optimizer.step()
+                # logging.info('Update Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+                #     epoch, (batch_idx + 1) * args.batch_size, len(train_data) * args.batch_size,
+                #            100. * (batch_idx + 1) / len(train_data), loss.item()))
+
+                batch_loss.append(loss.item())
+            epoch_loss.append(sum(batch_loss) / len(batch_loss))
+            logging.info('Client Index = {}\tEpoch: {}\tBN_Loss: {:.6f}'.format(self.id, epoch, sum(epoch_loss) / len(epoch_loss)))
+
+        # Collect BN layer parameters after training
+        bn_parameters = {}
+        for name, param in model.named_parameters():
+            if "bn" in name:
+                bn_parameters[name] = param.data.cpu().clone()
+        #param.grad.data.cpu().clone()
+        # # Retrieve and return the BN layer parameters
+        # bn_parameters = {'weight': self.model.bn_layer.weight.data.clone(),
+        #                 'bias': self.model.bn_layer.bias.data.clone()}
+
+        return bn_parameters
+
+    def train_BN1(self, train_data, device, args):
+
+        # Add a Batch Normalization layer to the model
+        num_features = model.fc.in_features
+        self.model.bn_layer = nn.BatchNorm2d(num_features)  # Adjust num_features based on your model
+
+        model = self.model
+
+        # Freeze all parameters except the newly added BN layer
+        for name, param in self.model.named_parameters():
+            if name != 'bn_layer.weight' and name != 'bn_layer.bias':
+                param.requires_grad = False
+
+        model.to(device)
+        model.train()
+
+        # train and update
+        criterion = nn.CrossEntropyLoss().to(device)
+        if args.client_optimizer == "sgd":
+            optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, self.model.parameters()), lr=args.lr)
+        else:
+            optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, self.model.parameters()), lr=args.lr,
+                                         weight_decay=args.wd, amsgrad=True)
+
+        epoch_loss = []
+        for epoch in range(1):
+            batch_loss = []
+            for batch_idx, (x, labels) in enumerate(train_data):
+                x, labels = x.to(device), labels.to(device)
+                model.zero_grad()
+                log_probs = model(x)
+                loss = criterion(log_probs, labels)
+                loss.backward()
+                #self.model.apply_mask_gradients()  # apply pruning mask
+                
+                # Uncommet this following line to avoid nan loss
+                # torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
+
+                optimizer.step()
+                # logging.info('Update Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+                #     epoch, (batch_idx + 1) * args.batch_size, len(train_data) * args.batch_size,
+                #            100. * (batch_idx + 1) / len(train_data), loss.item()))
+
+                batch_loss.append(loss.item())
+            epoch_loss.append(sum(batch_loss) / len(batch_loss))
+            logging.info('Client Index = {}\tEpoch: {}\tBN_Loss: {:.6f}'.format(self.id, epoch, sum(epoch_loss) / len(epoch_loss)))
+        
+        # Retrieve and return the BN layer parameters
+        bn_parameters = {'weight': self.model.bn_layer.weight.data.clone(),
+                        'bias': self.model.bn_layer.bias.data.clone()}
+
+        return bn_parameters
+
 
     def test(self, test_data, device, args):
         model = self.model

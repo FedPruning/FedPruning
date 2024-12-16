@@ -10,7 +10,7 @@ class SparseModel(nn.Module):
                  target_density:float=1.,
                  strategy:str="uniform_magnitude",
                  mask_dict: dict = {},
-                 ignore_layers:list[int, str, type]=[0, "bias", nn.BatchNorm2d, "bn"], 
+                 ignore_layers: list[int, str, type]=[0, "bias", nn.BatchNorm2d, "bn"], 
                  device = None,
                  ):
         super(SparseModel, self).__init__()
