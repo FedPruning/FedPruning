@@ -46,6 +46,9 @@ class MyModelTrainer(ModelTrainer):
             local_epochs = args.epochs
 
         new_forgotten_set = []
+        x_tensors = []
+        y_tensors = []
+
         if mode in [2, 3]:
             A_epochs = local_epochs // 2 if args.A_epochs is None else args.A_epochs
             first_epochs = min(local_epochs, A_epochs)
@@ -98,8 +101,6 @@ class MyModelTrainer(ModelTrainer):
 
             # growing
             if len(new_forgotten_set) > 1:
-                x_tensors = []
-                y_tensors = []
                 # Collect (x, y) pairs from the old DataLoader at (batch_idx, i)
                 for batch_idx, (x, target, index) in enumerate(train_data):
                     for i in range(x.size(0)):
@@ -107,6 +108,7 @@ class MyModelTrainer(ModelTrainer):
                             x_tensors.append(x[i])
                             y_tensors.append(target[i])
 
+            if len(x_tensors) > 1:
                 selected_x = torch.stack(x_tensors).to(device)
                 selected_y = torch.stack(y_tensors).to(device)
 
@@ -117,6 +119,8 @@ class MyModelTrainer(ModelTrainer):
                 # forgotten gradient
                 for batch_idx, (x, labels) in enumerate(forgotten_loader):
                     x, labels = x.to(device), labels.to(device)
+                    if x.size(0) == 1:
+                        continue
                     log_probs = model(x)
                     loss = criterion(log_probs, labels)
                     loss.backward()
@@ -138,12 +142,14 @@ class MyModelTrainer(ModelTrainer):
             model.zero_grad()
 
         # training after adjustment
-        if args.forgotten_train == 1 and len(new_forgotten_set) > 1:
+        if args.forgotten_train == 1 and len(x_tensors) > 1:
             for epoch in range(first_epochs, local_epochs):
                 batch_loss = []
                 for batch_idx, (x, labels) in enumerate(forgotten_loader):
                     x, labels = x.to(device), labels.to(device)
                     model.zero_grad()
+                    if x.size(0) == 1:
+                        continue
                     log_probs = model(x)
                     loss = criterion(log_probs, labels)
                     loss.backward()
@@ -165,7 +171,7 @@ class MyModelTrainer(ModelTrainer):
                 epoch_loss.append(sum(batch_loss) / len(batch_loss))
                 logging.info('Client Index = {}\tEpoch: {}\tLoss: {:.6f}'.format(self.id, epoch, sum(epoch_loss) / len(epoch_loss)))
 
-        logging.info('Client Index = {}\told_forgotten_set_len: {}\tnew_forgotten_set_len: {}'.format(self.id, len(forgotten_set), len(new_forgotten_set)))
+        logging.info('Client Index = {}\told_forgotten_set_len: {}\tnew_forgotten_set_len: {}'.format(self.id, len(forgotten_set), len(x_tensors)))
 
         return model.mask_dict, new_forgotten_set
 
