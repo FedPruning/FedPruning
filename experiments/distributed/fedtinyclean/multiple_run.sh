@@ -1,0 +1,4 @@
+CUDA_VISIBLE_DEVICES=0,1,2,3 nohup sh run_fedtinyclean_distributed_pytorch.sh resnet18 cifar10 100 10 500 5 0.2 0.5 --delta_T 10 --T_end 300 --num_eval 128 --frequency_of_the_test 10 --batch_size 64 --client_optimizer sgd >> nohup.out &
+CUDA_VISIBLE_DEVICES=0,1,2,3 nohup sh run_fedtinyclean_distributed_pytorch.sh resnet18 cifar10 100 10 500 5 0.2 0.5 --delta_T 10 --T_end 0 --num_eval 128 --frequency_of_the_test 10 --batch_size 64 --client_optimizer sgd >> nohup.out &
+CUDA_VISIBLE_DEVICES=4,5,6,7 nohup sh run_fedtinyclean_distributed_pytorch.sh resnet18 cifar10 100 10 500 5 0.2 0.1 --delta_T 10 --T_end 300 --num_eval 128 --frequency_of_the_test 10 --batch_size 64 --client_optimizer sgd >> nohup.out &
+CUDA_VISIBLE_DEVICES=4,5,6,7 nohup sh run_fedtinyclean_distributed_pytorch.sh resnet18 cifar10 100 10 500 5 0.2 0.1 --delta_T 10 --T_end 0 --num_eval 128 --frequency_of_the_test 10 --batch_size 64 --client_optimizer sgd >> nohup.out &
