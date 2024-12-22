@@ -6,10 +6,6 @@ import warnings
 import logging
 import re
 
-from FedPruning.api.distributed.fedsgc.message_define import MyMessage
-from FedPruning.api.distributed.fedsgc.utils import transform_list_to_tensor
-
-
 class SparseModel(nn.Module):
     def __init__(self, model,
                  target_density:float=1.,
