@@ -63,7 +63,6 @@ class MyModelTrainer(ModelTrainer):
                 # Uncommet this following line to avoid nan loss
                 # torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
 
-                optimizer.step()
                 # logging.info('Update Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 #     epoch, (batch_idx + 1) * args.batch_size, len(train_data) * args.batch_size,
                 #            100. * (batch_idx + 1) / len(train_data), loss.item()))
@@ -75,6 +74,8 @@ class MyModelTrainer(ModelTrainer):
                     for name, param in model.named_parameters():
                         if param.requires_grad:
                             gradients_squared[name] += (param.grad.data.cpu().clone()) ** 2
+                
+                optimizer.step()
             epoch_loss.append(sum(batch_loss) / len(batch_loss))
             logging.info('Client Index = {}\tEpoch: {}\tLoss: {:.6f}'.format(self.id, epoch, sum(epoch_loss) / len(epoch_loss)))
 
@@ -94,8 +95,8 @@ class MyModelTrainer(ModelTrainer):
         model.eval()
 
         metrics = {
-            'test_correct': 0,
-            'test_loss': 0,
+            'Accuracy': 0,
+            'Loss': 0,
             'test_total': 0
         }
 
@@ -112,9 +113,12 @@ class MyModelTrainer(ModelTrainer):
                 _, predicted = torch.max(pred, -1)
                 correct = predicted.eq(target).sum()
 
-                metrics['test_correct'] += correct.item()
-                metrics['test_loss'] += loss.item() * target.size(0)
+                metrics['Accuracy'] += correct.item()
+                metrics['Loss'] += loss.item() * target.size(0)
                 metrics['test_total'] += target.size(0)
+        
+        metrics['Accuracy'] /= metrics['test_total'] 
+        metrics['Loss'] /= metrics['test_total'] 
         return metrics
 
     def test_on_the_server(self, train_data_local_dict, test_data_local_dict, device, args=None) -> bool:

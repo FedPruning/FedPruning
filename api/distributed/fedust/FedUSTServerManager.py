@@ -4,7 +4,7 @@ import sys
 
 from .message_define import MyMessage
 from .utils import transform_tensor_to_list, post_complete_message_to_sweep_process
-from api.pruning.init_scheme import generate_layer_density_dict, pruning
+from api.pruning.init_scheme import pruning
 import torch
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "../../../")))
