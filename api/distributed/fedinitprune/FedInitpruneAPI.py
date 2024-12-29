@@ -5,7 +5,9 @@ from .FedInitpruneTrainer import FedInitpruneTrainer
 from .FedInitpruneClientManager import FedInitpruneClientManager
 from .FedInitpruneServerManager import FedInitpruneServerManager
 
-from ...standalone.fedinitprune.my_model_trainer_classification import MyModelTrainer as MyModelTrainerCLS
+from api.standalone.fedinitprune.my_model_trainer_classification import MyModelTrainer as MyModelTrainerCLS
+
+from api.standalone.fedinitprune.my_model_trainer_language_model import MyModelTrainer as MyModelTrainerLM
 
 def FedML_init():
     comm = MPI.COMM_WORLD
@@ -80,7 +82,12 @@ def init_server(
     preprocessed_sampling_lists=None,
 ):
     if model_trainer is None:
-        model_trainer = MyModelTrainerCLS(model)
+        if args.dataset in ["tinystories",]:
+            model_trainer = MyModelTrainerLM(model, args.dataset)
+        # elif args.dataset in ["fed_shakespeare", "stackoverflow_nwp"]:
+        #     model_trainer = MyModelTrainerNWP(model)
+        else:  # default model trainer is for classification problem
+            model_trainer = MyModelTrainerCLS(model)
     model_trainer.set_id(-1)
 
     # aggregator
@@ -132,11 +139,11 @@ def init_client(
 ):
     client_index = process_id - 1
     if model_trainer is None:
-        # if args.dataset == "stackoverflow_lr":
-        #     model_trainer = MyModelTrainerTAG(model)
+        if args.dataset in ["tinystories",]:
+            model_trainer = MyModelTrainerLM(model, args.dataset)
         # elif args.dataset in ["fed_shakespeare", "stackoverflow_nwp"]:
         #     model_trainer = MyModelTrainerNWP(model)
-        # else:  # default model trainer is for classification problem
+        else:  # default model trainer is for classification problem
             model_trainer = MyModelTrainerCLS(model)
     model_trainer.set_id(client_index)
     backend = args.backend
