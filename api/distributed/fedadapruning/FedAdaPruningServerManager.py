@@ -2,6 +2,8 @@ import logging
 import os, signal
 import sys
 
+import torch
+
 from .message_define import MyMessage
 from .utils import transform_tensor_to_list, post_complete_message_to_sweep_process
 
@@ -23,6 +25,12 @@ class FedAdaPruningServerManager(ServerManager):
         self.is_preprocessed = is_preprocessed
         self.preprocessed_client_lists = preprocessed_client_lists
         self.mode = 0 
+
+        # adaptive related
+        self.weight_beta = 0.8
+        self.weight_momentum = None
+        self.gradient_beta = 0.8
+        self.gradient_momentum = None
 
         # mode 0, the server send both weight and mask to clients, received the weight, perform weight aggregation, if t % \delta t == 0 and t <= t_end, go to mode 2, else, go to mode 1
         # mode 1, the server send weights, received the weights, perform weights aggregation, if t % \delta t == 0 and t <= t_end, go to mode 2, else, go to mode 1
@@ -82,10 +90,34 @@ class FedAdaPruningServerManager(ServerManager):
         logging.info("b_all_received = " + str(b_all_received))
         if b_all_received:
             global_model_params = self.aggregator.aggregate()
+            if self.args.enable_adaptive_aggregation == 1:
+                if not self.weight_momentum is None:
+                    logging.info("Start adaptive weights aggregation===================================================================================")
+                    for key in global_model_params.keys():
+                        self.weight_momentum[key] = torch.tensor(self.weight_momentum[key], dtype=torch.float32)
+                        global_model_params[key] = self.weight_momentum[key] * self.weight_beta + global_model_params[key] * (1 - self.weight_beta)
+                        # global_model_params[key] = global_model_params[key] / (1 - self.weight_beta ** self.round_idx) # corrected momentum
+                self.weight_momentum = global_model_params
+                self.aggregator.set_global_model_params(global_model_params)
+
             if self.mode in [2, 3]:
                 global_gradient = self.aggregator.aggregate_gradient()
+                if self.args.enable_adaptive_aggregation == 1:
+                    logging.info("Start adaptive gradients aggregation===================================================================================")
+                    if not self.gradient_momentum is None:
+                        for key in global_gradient.keys():
+                            self.gradient_momentum[key] = torch.tensor(self.gradient_momentum[key], dtype=torch.float32)
+                            global_gradient[key] = self.gradient_momentum[key] * self.gradient_beta + global_gradient[key] * (1 - self.gradient_beta)
+                            # global_gradient[key] = global_gradient[key] / (1 - self.gradient_beta ** self.round_idx) # corrected momentum
+                    self.gradient_momentum = global_gradient
+
                 # update the global model which is cached at the server side
-                self.aggregator.trainer.model.adjust_mask_dict(global_gradient, t=self.round_idx, T_end=self.args.T_end, alpha=self.args.adjust_alpha)
+                if self.args.enable_ts == 1:
+                    self.aggregator.ts_pruning_growing(global_gradient, t=self.round_idx, T_end=self.args.T_end, alpha=self.args.adjust_alpha)
+                    logging.info("Start ts pruning&growing===================================================================================")
+                else:
+                    self.aggregator.trainer.model.adjust_mask_dict(global_gradient, t=self.round_idx, T_end=self.args.T_end, alpha=self.args.adjust_alpha)
+                # self.aggregator.trainer.model.adjust_mask_dict(global_gradient, t=self.round_idx, T_end=self.args.T_end, alpha=self.args.adjust_alpha)
                 self.aggregator.trainer.model.to(self.aggregator.device)
                 self.aggregator.trainer.model.apply_mask()
                 

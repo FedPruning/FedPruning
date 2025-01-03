@@ -8,6 +8,7 @@ import torch
 import wandb
 
 from .utils import transform_list_to_tensor
+from api.pruning.init_scheme import f_decay
 
 class FedAdaPruningAggregator(object):
 
@@ -138,6 +139,79 @@ class FedAdaPruningAggregator(object):
             return sample_testset
         else:
             return self.test_global
+
+    def ts_pruning_growing(self, gradients, t, T_end, alpha):
+        gamma = self.args.aggregated_gamma
+        mask_dict = self.trainer.model.mask_dict
+        training_num = 0
+        for idx in range(self.worker_num):
+            training_num += self.sample_num_dict[idx]
+        # ......绷不住了，model套model，没发现这个问题
+        global_model_dict = self.trainer.model.model.named_parameters()
+        for name, param in global_model_dict:
+            if name in mask_dict:
+                active_num = (mask_dict[name] == 1).int().sum().item()
+                k = int(f_decay(t, alpha, T_end) * active_num)
+                # add protection for pruned num
+                inactive_num = int((mask_dict[name] == 0).int().sum().item())
+                k = min(k, inactive_num)
+                # Pruning voting, based on weights
+                # update clients' voting probabilities
+                # print("key: ", self.model_dict[0].keys())
+                # !!!! NOTE: key in model_dict is not equals to key in mask_dict and gradient
+                model_name = f'model.{name}'
+                weight_voting_dict = torch.zeros_like(self.model_dict[0][model_name]).cpu()
+                active_indices = (mask_dict[name].view(-1) == 1).nonzero(as_tuple=False).view(-1).cpu()
+                for idx in range(self.worker_num):
+                    model_dict = self.model_dict[idx]
+                    # p_k
+                    client_w = self.sample_num_dict[idx] / training_num
+                    if self.args.is_mobile == 1:
+                        model_dict = transform_list_to_tensor(model_dict)
+                    # select lowest_k weights' indices
+                    # !!! NOTE: Need to update lowest in activate index
+                    _, local_lowest_k_indices = torch.topk(torch.abs(model_dict[model_name].view(-1)[active_indices]), k, largest=False)
+                    # update a tmp voting dict and voting
+                    local_weight_voting_dict = torch.zeros_like(weight_voting_dict).cpu()
+                    local_weight_voting_dict.view(-1)[active_indices[local_lowest_k_indices.cpu()]] = 1.0
+                    # voting based on sample num(importance related to training data size)
+                    weight_voting_dict += local_weight_voting_dict * client_w
+                # update global voting probabilities
+                _, global_lowest_k_indices = torch.topk(torch.abs(param.view(-1)[active_indices]), k, largest=False)
+                global_weight_voting_dict = torch.zeros_like(weight_voting_dict).cpu()
+                global_weight_voting_dict.view(-1)[active_indices[global_lowest_k_indices.cpu()]] = 1.0
+                weight_voting_dict = (1 - gamma) * weight_voting_dict + gamma * global_weight_voting_dict
+                # Growing voting, based on gradients
+                # update clients' voting probabilities
+                print("key: ", self.gradient_dict[0].keys())
+                gradient_voting_dict = torch.zeros_like(self.gradient_dict[0][name]).cpu()
+                inactive_indices = (mask_dict[name].view(-1) == 0).nonzero(as_tuple=False).view(-1).cpu()
+                for idx in range(self.worker_num):
+                    gradient_dict = self.gradient_dict[idx]
+                    # p_k
+                    client_w = self.sample_num_dict[idx] / training_num
+                    _, local_largest_k_indices = torch.topk(torch.abs(gradient_dict[name].view(-1)[inactive_indices]), k, largest=True)
+                    # update a tmp voting dict and voting
+                    local_gradient_voting_dict = torch.zeros_like(gradient_voting_dict).cpu()
+                    local_gradient_voting_dict.view(-1)[inactive_indices[local_largest_k_indices.cpu()]] = 1
+                    # voting based on sample num(importance related to training data size)
+                    gradient_voting_dict += local_gradient_voting_dict * client_w
+                # update global voting probabilities
+                _, global_largest_k_indices = torch.topk(torch.abs(gradients[name].view(-1)[inactive_indices]), k, largest=True)
+                global_gradient_voting_dict = torch.zeros_like(gradient_voting_dict).cpu()
+                global_gradient_voting_dict.view(-1)[inactive_indices[global_largest_k_indices.cpu()]] = 1
+                gradient_voting_dict = (1 - gamma) * gradient_voting_dict + gamma * global_gradient_voting_dict
+                # pruning
+                active_indices = (mask_dict[name].view(-1) == 1).nonzero(as_tuple=False).view(-1).cpu()
+                active_votes = weight_voting_dict.view(-1)[active_indices]
+                _, prune_indices = torch.topk(active_votes, k, largest=True) # 因为前面已经选出最低的k个并投票，因此仍然选prob最大的k个即可
+                mask_dict[name].view(-1)[active_indices[prune_indices.cpu()]] = 0
+                # growing
+                inactive_indices = (mask_dict[name].view(-1) == 0).nonzero(as_tuple=False).view(-1).cpu()
+                inactive_votes = gradient_voting_dict.view(-1)[inactive_indices].cpu()
+                _, grow_indices = torch.topk(inactive_votes, k, largest=True)
+                mask_dict[name].view(-1)[inactive_indices[grow_indices.cpu()]] = 1
+        self.trainer.model.mask_dict = mask_dict
 
     def test_on_server_for_all_clients(self, round_idx):
         # if self.trainer.test_on_the_server(self.train_data_local_dict, self.test_data_local_dict, self.device, self.args):

@@ -98,6 +98,12 @@ def add_args(parser):
     
     parser.add_argument("--adjustment_epochs", type=int, default=None, help=" the number of local apoches used in model adjustment round, if it is set None, it is equal to the number of epoches for training round" )
 
+    parser.add_argument("--enable_adaptive_aggregation", type=int, default=0, help="use adaptive method")
+
+    parser.add_argument("--enable_ts", type=int, default=0, help="use thompson sampling")
+
+    parser.add_argument("--aggregated_gamma", type=float, default=1.0, help="weight for aggregated param")
+
     # Following arguments are seldom changed
     parser.add_argument(
         "--gpu_mapping_key", type=str, default="mapping_default", help="the key in gpu utilization file"
@@ -223,7 +229,7 @@ if __name__ == "__main__":
     logging.info(args)
 
     # customize the process name
-    str_process_name = "FedTiny-Clean (distributed):" + str(process_id)
+    str_process_name = "FedAdaPruning (distributed):" + str(process_id)
     setproctitle.setproctitle(str_process_name)
 
     # customize the log format
@@ -250,10 +256,14 @@ if __name__ == "__main__":
     if process_id == 0:
         wandb.init(
             project="FedPruning",
-            name="FedTiny-Clean_"
+            name="FedAdaPruning_"
             + args.dataset 
             + "_"
             + args.model 
+            + "_ADA_"
+            + ("ON" if args.enable_adaptive_aggregation == 1 else "OFF")
+            + "_TS_"
+            + ("ON" if args.enable_ts == 1 else "OFF")
             ,
             config=args,
         )
