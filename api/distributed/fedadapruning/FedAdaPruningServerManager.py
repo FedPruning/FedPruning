@@ -27,9 +27,9 @@ class FedAdaPruningServerManager(ServerManager):
         self.mode = 0 
 
         # adaptive related
-        self.weight_beta = 0.8
+        self.weight_beta = args.adaptive_beta
         self.weight_momentum = None
-        self.gradient_beta = 0.8
+        self.gradient_beta = args.adaptive_beta
         self.gradient_momentum = None
 
         # mode 0, the server send both weight and mask to clients, received the weight, perform weight aggregation, if t % \delta t == 0 and t <= t_end, go to mode 2, else, go to mode 1

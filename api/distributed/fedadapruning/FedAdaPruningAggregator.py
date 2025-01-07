@@ -36,6 +36,11 @@ class FedAdaPruningAggregator(object):
         for idx in range(self.worker_num):
             self.flag_client_model_uploaded_dict[idx] = False
 
+        self.gradient_alphas = None
+        self.gradient_betas = None
+        self.weight_alphas = None
+        self.weight_betas = None
+
     def get_global_model_params(self):
         return self.trainer.get_model_params()
 
@@ -141,13 +146,27 @@ class FedAdaPruningAggregator(object):
             return self.test_global
 
     def ts_pruning_growing(self, gradients, t, T_end, alpha):
+        # set independent random seed
+        torch.manual_seed(t)
         gamma = self.args.aggregated_gamma
+        ratio = self.args.initial_distribution_ratio
         mask_dict = self.trainer.model.mask_dict
         training_num = 0
         for idx in range(self.worker_num):
             training_num += self.sample_num_dict[idx]
         # ......绷不住了，model套model，没发现这个问题
         global_model_dict = self.trainer.model.model.named_parameters()
+
+        # TODO: Initialize beta distribution of thompson sampling for history information.
+        # if self.gradient_alphas is None or self.gradient_betas is None or self.weight_alphas is None or self.weight_betas is None:
+        #     self.gradient_alphas, self.gradient_betas, self.weight_alphas, self.weight_betas = dict()
+        #     for name, param in global_model_dict:
+        #         model_name = f'model.{name}'
+        #         self.weight_alphas[name] = torch.ones_like(self.model_dict[0][model_name]).cpu()
+        #         self.weight_betas[name] = torch.ones_like(self.model_dict[0][model_name]).cpu()
+        #         self.gradient_alphas[name] = torch.ones_like(self.gradient_dict[0][name]).cpu()
+        #         self.gradient_betas[name] = torch.ones_like(self.gradient_dict[0][name]).cpu()
+
         for name, param in global_model_dict:
             if name in mask_dict:
                 active_num = (mask_dict[name] == 1).int().sum().item()
@@ -155,9 +174,11 @@ class FedAdaPruningAggregator(object):
                 # add protection for pruned num
                 inactive_num = int((mask_dict[name] == 0).int().sum().item())
                 k = min(k, inactive_num)
+                if k == 0:
+                    continue
+
                 # Pruning voting, based on weights
                 # update clients' voting probabilities
-                # print("key: ", self.model_dict[0].keys())
                 # !!!! NOTE: key in model_dict is not equals to key in mask_dict and gradient
                 model_name = f'model.{name}'
                 weight_voting_dict = torch.zeros_like(self.model_dict[0][model_name]).cpu()
@@ -181,9 +202,10 @@ class FedAdaPruningAggregator(object):
                 global_weight_voting_dict = torch.zeros_like(weight_voting_dict).cpu()
                 global_weight_voting_dict.view(-1)[active_indices[global_lowest_k_indices.cpu()]] = 1.0
                 weight_voting_dict = (1 - gamma) * weight_voting_dict + gamma * global_weight_voting_dict
+
                 # Growing voting, based on gradients
                 # update clients' voting probabilities
-                print("key: ", self.gradient_dict[0].keys())
+                # print("key: ", self.gradient_dict[0].keys())
                 gradient_voting_dict = torch.zeros_like(self.gradient_dict[0][name]).cpu()
                 inactive_indices = (mask_dict[name].view(-1) == 0).nonzero(as_tuple=False).view(-1).cpu()
                 for idx in range(self.worker_num):
@@ -201,15 +223,23 @@ class FedAdaPruningAggregator(object):
                 global_gradient_voting_dict = torch.zeros_like(gradient_voting_dict).cpu()
                 global_gradient_voting_dict.view(-1)[inactive_indices[global_largest_k_indices.cpu()]] = 1
                 gradient_voting_dict = (1 - gamma) * gradient_voting_dict + gamma * global_gradient_voting_dict
-                # pruning
+                # pruning, update probabilities based on beta distribution
                 active_indices = (mask_dict[name].view(-1) == 1).nonzero(as_tuple=False).view(-1).cpu()
                 active_votes = weight_voting_dict.view(-1)[active_indices]
-                _, prune_indices = torch.topk(active_votes, k, largest=True) # 因为前面已经选出最低的k个并投票，因此仍然选prob最大的k个即可
+                pruning_alphas = active_votes + ratio * k / float(active_votes.size()[0])
+                pruning_betas = torch.full_like(pruning_alphas, ratio * k / float(active_votes.size()[0]))
+                pruning_samples = torch.distributions.Beta(pruning_alphas, pruning_betas).sample()
+                _, prune_indices = torch.topk(pruning_samples, k, largest=True)
+                # _, prune_indices = torch.topk(active_votes, k, largest=True) # 因为前面已经选出最低的k个并投票，因此仍然选prob最大的k个即可
                 mask_dict[name].view(-1)[active_indices[prune_indices.cpu()]] = 0
                 # growing
                 inactive_indices = (mask_dict[name].view(-1) == 0).nonzero(as_tuple=False).view(-1).cpu()
                 inactive_votes = gradient_voting_dict.view(-1)[inactive_indices].cpu()
-                _, grow_indices = torch.topk(inactive_votes, k, largest=True)
+                growing_alphas = inactive_votes + ratio * k / float(inactive_votes.size()[0])
+                growing_betas = torch.full_like(growing_alphas, ratio * k / float(inactive_votes.size()[0]))
+                growing_samples = torch.distributions.Beta(growing_alphas, growing_betas).sample()
+                _, grow_indices = torch.topk(growing_samples, k, largest=True)
+                # _, grow_indices = torch.topk(inactive_votes, k, largest=True)
                 mask_dict[name].view(-1)[inactive_indices[grow_indices.cpu()]] = 1
         self.trainer.model.mask_dict = mask_dict
 
