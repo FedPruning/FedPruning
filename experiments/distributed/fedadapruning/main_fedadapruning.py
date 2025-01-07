@@ -100,9 +100,13 @@ def add_args(parser):
 
     parser.add_argument("--enable_adaptive_aggregation", type=int, default=0, help="use adaptive method")
 
+    parser.add_argument("--adaptive_beta", type=float, default=0.1, help="beta for momentum in aggregation")
+
     parser.add_argument("--enable_ts", type=int, default=0, help="use thompson sampling")
 
     parser.add_argument("--aggregated_gamma", type=float, default=1.0, help="weight for aggregated param")
+
+    parser.add_argument("--initial_distribution_ratio", type=float, default=1.0, help="ratio for initial beta distribution")
 
     # Following arguments are seldom changed
     parser.add_argument(
