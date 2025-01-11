@@ -6,7 +6,7 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_fedadapruning_distributed_pytorch.sh resnet1
 # --adjustment_epochs None --growth_data_mode batch --client_optimizer adam
 
 # quick test 
-CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_fedadapruning_distributed_pytorch.sh resnet18 cifar10 100 10 500 1 0.1 0.1 --delta_T 10 --T_end 300 --num_eval 128 --frequency_of_the_test 10 --enable_adaptive_aggregation 0 --adaptive_beta 0.1 --enable_ts 1 --aggregated_gamma 1.0 --initial_distribution_ratio 1.0
+CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_fedadapruning_distributed_pytorch.sh resnet18 cifar10 100 10 500 1 0.1 0.1 --delta_T 10 --T_end 300 --num_eval 128 --frequency_of_the_test 10 --enable_adaptive_aggregation 0 --adaptive_beta 0.1 --enable_ts 1 --aggregated_gamma 1.0 --initial_distribution_ratio 1.0 --ts_beta_update 1
 # --adjustment_epochs None --growth_data_mode batch --client_optimizer sgd
 ```
 
@@ -20,7 +20,7 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_fedadapruning_distributed_pytorch.sh gpt2 ti
 ## Usage
 [$\cdot$] is mandatory arguments, {$\cdot$} is the optional arguments.
 ```
-CUDA_VISIBLE_DEVICES=[gpus] sh run_fedadapruning_distributed_pytorch.sh [model] [dataset] [client_num_in_total] [client_num_per_round]  [comm_round] [epochs] [target_density] [initial_lr]   {--delta_T , --T_end, --partition_alpha, --num_eval, --frequency_of_the_test, --enable_adaptive_aggregation, --adaptive_beta, --enable_ts, --aggregated_gamma, --initial_distribution_ratio}
+CUDA_VISIBLE_DEVICES=[gpus] sh run_fedadapruning_distributed_pytorch.sh [model] [dataset] [client_num_in_total] [client_num_per_round]  [comm_round] [epochs] [target_density] [initial_lr]   {--delta_T , --T_end, --partition_alpha, --num_eval, --frequency_of_the_test, --enable_adaptive_aggregation, --adaptive_beta, --enable_ts, --aggregated_gamma, --initial_distribution_ratio, --ts_beta_update}
 ```
 
 where
@@ -42,6 +42,7 @@ where
 {--frequency_of_the_test} the frequency to test/validate the performance during the training, using num_eval data samples[enable_adaptive_aggregation] whether use adaptive method(momentum) on server to update gradients
 [adaptive_beta] beta for adaptive method such as momentum
 [enable_ts] whether use ts when pruning and growing on server
-[aggregated_gamma] the weight for aggregated parameters' voting("1 - gamma" for clients' parameters
+[aggregated_gamma] the weight for aggregated parameters' voting, "1 - gamma" for clients' parameters
 [initial_distribution_ratio] ratio for initial beta distribution in thompson sampling
+[ts_beta_update] whether use (1 - r_t) for all beta (or only update non-zero's beta)
 ```
