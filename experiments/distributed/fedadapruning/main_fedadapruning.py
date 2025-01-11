@@ -108,6 +108,8 @@ def add_args(parser):
 
     parser.add_argument("--initial_distribution_ratio", type=float, default=1.0, help="ratio for initial beta distribution")
 
+    parser.add_argument("--ts_beta_update", type=int, default=0, help="whether use (1 - r_t) for all beta")
+
     # Following arguments are seldom changed
     parser.add_argument(
         "--gpu_mapping_key", type=str, default="mapping_default", help="the key in gpu utilization file"
