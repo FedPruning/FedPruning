@@ -89,7 +89,7 @@ class FedAdaPruningServerManager(ServerManager):
         b_all_received = self.aggregator.check_whether_all_receive()
         logging.info("b_all_received = " + str(b_all_received))
         if b_all_received:
-            global_model_params = self.aggregator.aggregate()
+            global_model_params = self.aggregator.aggregate(t=self.round_idx, T_end=self.args.T_end, alpha=self.args.adjust_alpha)
             if self.args.enable_adaptive_aggregation == 1:
                 if not self.weight_momentum is None:
                     logging.info("Start adaptive weights aggregation===================================================================================")

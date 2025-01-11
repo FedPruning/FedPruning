@@ -36,8 +36,6 @@ class FedAdaPruningAggregator(object):
         for idx in range(self.worker_num):
             self.flag_client_model_uploaded_dict[idx] = False
 
-        self.gradient_alphas = None
-        self.gradient_betas = None
         self.weight_alphas = None
         self.weight_betas = None
 
@@ -67,7 +65,7 @@ class FedAdaPruningAggregator(object):
             self.flag_client_model_uploaded_dict[idx] = False
         return True
 
-    def aggregate(self):
+    def aggregate(self, t, T_end, alpha):
         start_time = time.time()
         model_list = []
         training_num = 0
@@ -93,6 +91,60 @@ class FedAdaPruningAggregator(object):
 
         # update the global model which is cached at the server side
         self.set_global_model_params(averaged_params)
+
+        need_initialize = False
+        if self.weight_alphas is None or self.weight_betas is None:
+            self.weight_alphas = dict()
+            self.weight_betas = dict()
+            need_initialize = True
+
+        torch.manual_seed(t)
+        gamma = self.args.aggregated_gamma
+        ratio = self.args.initial_distribution_ratio
+        mask_dict = self.trainer.model.mask_dict
+        global_model_dict = self.trainer.model.model.named_parameters()
+        for name, param in global_model_dict:
+            if name in mask_dict:
+                active_num = (mask_dict[name] == 1).int().sum().item()
+                k = int(f_decay(t, alpha, T_end) * active_num)
+                model_name = f'model.{name}'
+                
+                weight_voting_dict = torch.zeros_like(self.model_dict[0][model_name]).cpu()
+                active_indices = (mask_dict[name].view(-1) == 1).nonzero(as_tuple=False).view(-1).cpu()
+                for idx in range(self.worker_num):
+                    model_dict = self.model_dict[idx]
+                    # p_k
+                    client_w = self.sample_num_dict[idx] / training_num
+                    if self.args.is_mobile == 1:
+                        model_dict = transform_list_to_tensor(model_dict)
+                    # select lowest_k weights' indices
+                    # !!! NOTE: Need to update lowest in activate index
+                    _, local_lowest_k_indices = torch.topk(torch.abs(model_dict[model_name].view(-1)[active_indices]), k, largest=False)
+                    # update a tmp voting dict and voting
+                    local_weight_voting_dict = torch.zeros_like(weight_voting_dict).cpu()
+                    local_weight_voting_dict.view(-1)[active_indices[local_lowest_k_indices.cpu()]] = 1.0
+                    # voting based on sample num(importance related to training data size)
+                    weight_voting_dict += local_weight_voting_dict * client_w
+                # update global voting probabilities
+                _, global_lowest_k_indices = torch.topk(torch.abs(param.view(-1)[active_indices]), k, largest=False)
+                global_weight_voting_dict = torch.zeros_like(weight_voting_dict).cpu()
+                global_weight_voting_dict.view(-1)[active_indices[global_lowest_k_indices.cpu()]] = 1.0
+                weight_voting_dict = (1 - gamma) * weight_voting_dict + gamma * global_weight_voting_dict
+
+                active_votes = weight_voting_dict.view(-1)[active_indices]
+                avg_active_prob = ratio * k / float(active_votes.size()[0])
+                active_zero_indices = (active_votes == 0) # find indices in voting which value equals to 0
+                active_avg_failed_prob = ratio * (float(active_votes.size()[0]) - k) / float(active_zero_indices.size()[0])
+
+                # Initialize beta distribution of thompson sampling on weights' history information.
+                if need_initialize:
+                    self.weight_alphas[name] = torch.full_like(self.model_dict[0][model_name], avg_active_prob)
+                    self.weight_betas[name] = torch.full_like(self.model_dict[0][model_name], avg_active_prob)
+
+                # update alphas
+                self.weight_alphas[name].view(-1)[active_indices] += active_votes
+                # update betas
+                self.weight_betas[name].view(-1)[active_indices][active_zero_indices] += active_avg_failed_prob
 
         end_time = time.time()
         logging.info("aggregate time cost: %d" % (end_time - start_time))
@@ -157,16 +209,6 @@ class FedAdaPruningAggregator(object):
         # ......绷不住了，model套model，没发现这个问题
         global_model_dict = self.trainer.model.model.named_parameters()
 
-        # TODO: Initialize beta distribution of thompson sampling for history information.
-        # if self.gradient_alphas is None or self.gradient_betas is None or self.weight_alphas is None or self.weight_betas is None:
-        #     self.gradient_alphas, self.gradient_betas, self.weight_alphas, self.weight_betas = dict()
-        #     for name, param in global_model_dict:
-        #         model_name = f'model.{name}'
-        #         self.weight_alphas[name] = torch.ones_like(self.model_dict[0][model_name]).cpu()
-        #         self.weight_betas[name] = torch.ones_like(self.model_dict[0][model_name]).cpu()
-        #         self.gradient_alphas[name] = torch.ones_like(self.gradient_dict[0][name]).cpu()
-        #         self.gradient_betas[name] = torch.ones_like(self.gradient_dict[0][name]).cpu()
-
         for name, param in global_model_dict:
             if name in mask_dict:
                 active_num = (mask_dict[name] == 1).int().sum().item()
@@ -226,22 +268,36 @@ class FedAdaPruningAggregator(object):
                 # pruning, update probabilities based on beta distribution
                 active_indices = (mask_dict[name].view(-1) == 1).nonzero(as_tuple=False).view(-1).cpu()
                 active_votes = weight_voting_dict.view(-1)[active_indices]
-                pruning_alphas = active_votes + ratio * k / float(active_votes.size()[0])
-                pruning_betas = torch.full_like(pruning_alphas, ratio * k / float(active_votes.size()[0]))
-                pruning_samples = torch.distributions.Beta(pruning_alphas, pruning_betas).sample()
+                active_zero_indices = (active_votes == 0) # find indices which value equals to 0
+                active_avg_failed_prob = ratio * (float(active_votes.size()[0]) - k) / float(active_zero_indices.size()[0])
+                # update alphas
+                self.weight_alphas[name].view(-1)[active_indices] += active_votes
+                # update betas
+                self.weight_betas[name].view(-1)[active_indices][active_zero_indices] += active_avg_failed_prob
+                # sample based on beta distribution
+                pruning_samples = torch.distributions.Beta(self.weight_alphas[name].view(-1)[active_indices], self.weight_betas[name].view(-1)[active_indices]).sample()
                 _, prune_indices = torch.topk(pruning_samples, k, largest=True)
                 # _, prune_indices = torch.topk(active_votes, k, largest=True) # 因为前面已经选出最低的k个并投票，因此仍然选prob最大的k个即可
                 mask_dict[name].view(-1)[active_indices[prune_indices.cpu()]] = 0
                 # growing
                 inactive_indices = (mask_dict[name].view(-1) == 0).nonzero(as_tuple=False).view(-1).cpu()
                 inactive_votes = gradient_voting_dict.view(-1)[inactive_indices].cpu()
-                growing_alphas = inactive_votes + ratio * k / float(inactive_votes.size()[0])
-                growing_betas = torch.full_like(growing_alphas, ratio * k / float(inactive_votes.size()[0]))
+                # update alphas
+                avg_inactive_prob = ratio * k / float(inactive_votes.size()[0])
+                growing_alphas = inactive_votes + avg_inactive_prob
+                # update betas
+                growing_betas = torch.full_like(growing_alphas, avg_inactive_prob)
+                inactive_zero_indices = (inactive_votes == 0) # find indices which value equals to 0
+                inactive_avg_failed_prob = ratio * (float(inactive_votes.size()[0]) - k) / float(inactive_zero_indices.size()[0])
+                growing_betas[inactive_zero_indices] += inactive_avg_failed_prob
+                # sample based on beta distribution
                 growing_samples = torch.distributions.Beta(growing_alphas, growing_betas).sample()
                 _, grow_indices = torch.topk(growing_samples, k, largest=True)
                 # _, grow_indices = torch.topk(inactive_votes, k, largest=True)
                 mask_dict[name].view(-1)[inactive_indices[grow_indices.cpu()]] = 1
         self.trainer.model.mask_dict = mask_dict
+        self.weight_alphas = None
+        self.weight_betas = None
 
     def test_on_server_for_all_clients(self, round_idx):
         # if self.trainer.test_on_the_server(self.train_data_local_dict, self.test_data_local_dict, self.device, self.args):
