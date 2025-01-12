@@ -133,7 +133,7 @@ class FedAdaPruningAggregator(object):
                 weight_voting_dict = (1 - gamma) * weight_voting_dict + gamma * global_weight_voting_dict
 
                 active_votes = weight_voting_dict.view(-1)[active_indices]
-                avg_active_prob = ratio * k / float(active_votes.size()[0])
+                avg_active_prob = k / float(active_votes.size()[0])
 
                 # Initialize beta distribution of thompson sampling on weights' history information.
                 if need_initialize:
@@ -141,15 +141,15 @@ class FedAdaPruningAggregator(object):
                     self.weight_betas[name] = torch.full_like(self.model_dict[0][model_name], avg_active_prob)
 
                 # update alphas
-                self.weight_alphas[name].view(-1)[active_indices] += active_votes
+                self.weight_alphas[name].view(-1)[active_indices] += ratio * active_votes
                 # update betas
                 if self.args.ts_beta_update == 1:
-                    self.weight_betas[name].view(-1)[active_indices] += (1 - active_votes)
+                    self.weight_betas[name].view(-1)[active_indices] += ratio * (1 - active_votes)
                     # self.weight_betas[name] = torch.clamp(self.weight_betas[name], min=1e-6) # add protection
                 else:
                     active_zero_indices = (active_votes == 0) # find indices in voting which value equals to 0
                     active_avg_failed_prob = (float(active_votes.size()[0]) - k) / float(active_zero_indices.size()[0])
-                    self.weight_betas[name].view(-1)[active_indices][active_zero_indices] += active_avg_failed_prob
+                    self.weight_betas[name].view(-1)[active_indices][active_zero_indices] += ratio * active_avg_failed_prob
 
         end_time = time.time()
         logging.info("aggregate time cost: %d" % (end_time - start_time))
@@ -265,15 +265,15 @@ class FedAdaPruningAggregator(object):
                 inactive_indices = (mask_dict[name].view(-1) == 0).nonzero(as_tuple=False).view(-1).cpu()
                 inactive_votes = gradient_voting_dict.view(-1)[inactive_indices].cpu()
                 # update alphas
-                avg_inactive_prob = ratio * k / float(inactive_votes.size()[0])
-                growing_alphas = inactive_votes + avg_inactive_prob
+                avg_inactive_prob = k / float(inactive_votes.size()[0])
+                growing_alphas = ratio * inactive_votes + avg_inactive_prob
                 # update betas
                 growing_betas = torch.full_like(growing_alphas, avg_inactive_prob)
                 inactive_zero_indices = (inactive_votes == 0)  # find indices which value equals to 0
 
                 inactive_avg_failed_prob = (float(inactive_votes.size()[0]) - k) / float(
                     inactive_zero_indices.size()[0])
-                growing_betas[inactive_zero_indices] += inactive_avg_failed_prob
+                growing_betas[inactive_zero_indices] += ratio * inactive_avg_failed_prob
                 # sample based on beta distribution
                 growing_samples = torch.distributions.Beta(growing_alphas, growing_betas).sample()
                 _, grow_indices = torch.topk(growing_samples, k, largest=True)
