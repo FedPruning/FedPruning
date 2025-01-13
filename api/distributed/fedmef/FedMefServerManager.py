@@ -2,8 +2,10 @@ import logging
 import os, signal
 import sys
 
+import torch
 from .message_define import MyMessage
 from .utils import transform_tensor_to_list, post_complete_message_to_sweep_process
+from api.pruning.init_scheme import f_decay
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "../../../")))
 try:
@@ -31,6 +33,32 @@ class FedMefServerManager(ServerManager):
 
     def run(self):
         super().run()
+    
+    def get_topk_gradients(self, gradients):
+        for name, param in self.aggregator.trainer.model.model.named_parameters():
+            mask_dict = self.aggregator.trainer.model.mask_dict
+            if name in mask_dict:
+                active_num = (mask_dict[name] == 1).int().sum().item()
+                k = int(f_decay(t=self.round_idx, T_end=self.args.T_end, alpha=self.args.adjust_alpha) * active_num)
+                #print('Attention: acitive_num: ', active_num,'k: ',k)
+                # Find the k  largest gradients connections among the currently inactive connections
+                inactive_indices = (mask_dict[name].view(-1) == 0).nonzero(as_tuple=False).view(-1).cpu()
+                
+                try:
+                    grad_inactive = gradients[name].abs().view(-1)[inactive_indices].cpu()
+                    _, topk_indices = torch.topk(grad_inactive, k, sorted=False)
+                except:
+                    topk_indices = inactive_indices
+                    
+                mask_gradients = torch.zeros(gradients[name].view(-1).shape, dtype=torch.bool)
+                for idx in topk_indices:
+                    mask_gradients[idx] = True 
+                # zero_indices = [idx for idx in all_indices if idx not in grow_indices]
+                # gradients[name].view(-1)[:]
+                #print("original gradient:",gradients[name],"non_zero_num: ",torch.count_nonzero(gradients[name]))
+                gradients[name].view(-1)[~mask_gradients.cpu()] = 0
+                #print("topk gradient:",gradients[name],"non_zero_num: ",torch.count_nonzero(gradients[name]))
+        return gradients
 
     def send_init_msg(self):
         # sampling clients
@@ -75,6 +103,9 @@ class FedMefServerManager(ServerManager):
         local_sample_number = msg_params.get(MyMessage.MSG_ARG_KEY_NUM_SAMPLES)
         if self.mode in [2, 3]:
             gradients = msg_params.get(MyMessage.MSG_ARG_KEY_MODEL_GRADIENT)
+            if self.args.enable_topk_grad == True:
+                gradients = self.get_topk_gradients(gradients)
+
             self.aggregator.add_local_trained_gradient(sender_id - 1, gradients)
             
         self.aggregator.add_local_trained_result(sender_id - 1, model_params, local_sample_number)

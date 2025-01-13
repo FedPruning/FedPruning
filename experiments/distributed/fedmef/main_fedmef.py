@@ -109,9 +109,10 @@ def add_args(parser):
 
     parser.add_argument("--psi_of_lr", type=float, default=1.0, help="weight of adjusted learning rate in BaE")
 
-    parser.add_argument("--max_lr", type=float, default=0.1, help="max learning rate in adjustment")
-
+    parser.add_argument("--max_lr", type=float, default=0.01, help="max learning rate in adjustment")
     parser.add_argument("--enable_dynamic_lowest_k", type=int, default=0, help="is a switch for finding lowest k in training or marking lowest k before training")
+    
+    parser.add_argument("--enable_topk_grad", type=bool, default=True, help="each client uploads and uses top k gradients for growing")
 
     # Following arguments are seldom changed
     parser.add_argument(
