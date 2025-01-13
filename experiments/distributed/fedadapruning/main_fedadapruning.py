@@ -82,7 +82,7 @@ def add_args(parser):
 
     parser.add_argument("--comm_round", type=int, default=10, help="how many round of communications we shoud use")
 
-    parser.add_argument("--frequency_of_the_test", type=int, default=1, help="the frequency of the algorithms")
+    parser.add_argument("--frequency_of_the_test", type=int, default=10, help="the frequency of the algorithms")
     
     parser.add_argument('--pruning_strategy', type=str, default="ERK_magnitude",
         help='the distribution of layerwise density and the pruning method, options["uniform_magnitude", "ER_magnitude", "ERK_magnitude"]')
@@ -92,7 +92,7 @@ def add_args(parser):
 
     parser.add_argument('--delta_T', type=int, default=10, help='delta t for update')
 
-    parser.add_argument('--T_end', type=int, default=100, help='end of time for update')
+    parser.add_argument('--T_end', type=int, default=300, help='end of time for update')
 
     parser.add_argument("--adjust_alpha", type=float, default=0.2, help='the ratio of num elements for adjustments')
     
@@ -102,13 +102,13 @@ def add_args(parser):
 
     parser.add_argument("--adaptive_beta", type=float, default=0.1, help="beta for momentum in aggregation")
 
-    parser.add_argument("--enable_ts", type=int, default=0, help="use thompson sampling")
+    parser.add_argument("--enable_ts", type=int, default=1, help="use thompson sampling")
 
-    parser.add_argument("--aggregated_gamma", type=float, default=1.0, help="weight for aggregated param")
+    parser.add_argument("--aggregated_gamma", type=float, default=0.5, help="weight for aggregated param")
 
-    parser.add_argument("--initial_distribution_ratio", type=float, default=1.0, help="ratio for initial beta distribution")
+    parser.add_argument("--initial_distribution_ratio", type=float, default=10., help="ratio for initial beta distribution")
 
-    parser.add_argument("--ts_beta_update", type=int, default=0, help="whether use (1 - r_t) for all beta")
+    parser.add_argument("--ts_beta_update", type=int, default=1, help="whether use (1 - r_t) for all beta")
 
     # Following arguments are seldom changed
     parser.add_argument(
@@ -146,7 +146,7 @@ def add_args(parser):
 
     parser.add_argument("--data_dir", type=str, default=None, help="data directory")
 
-    parser.add_argument("--client_optimizer", type=str, default="sgd", help="SGD with momentum; adam")
+    parser.add_argument("--client_optimizer", type=str, default="adam", help="SGD with momentum; adam")
 
     parser.add_argument("--growth_data_mode", type=str, default="batch", help=" the number of data samples used for parameter growth, option are [ 'random', 'single', 'batch', 'entire']" )
 
@@ -158,7 +158,6 @@ def load_data(args, dataset_name):
 
     if args.data_dir is None:
         args.data_dir = f"./../../../data/{dataset_name}"
-    
 
     if dataset_name == "tinystories":
         dataset_tuple = load_partition_data_tinystories(args.partition_method,
@@ -265,11 +264,7 @@ if __name__ == "__main__":
             name="FedAdaPruning_"
             + args.dataset 
             + "_"
-            + args.model 
-            + "_ADA_"
-            + ("ON" if args.enable_adaptive_aggregation == 1 else "OFF")
-            + "_TS_"
-            + ("ON" if args.enable_ts == 1 else "OFF")
+            + args.model
             ,
             config=args,
         )

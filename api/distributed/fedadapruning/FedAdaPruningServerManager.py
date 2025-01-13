@@ -8,12 +8,8 @@ from .message_define import MyMessage
 from .utils import transform_tensor_to_list, post_complete_message_to_sweep_process
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "../../../")))
-try:
-    from core.distributed.communication.message import Message
-    from core.distributed.server.server_manager import ServerManager
-except ImportError:
-    from FedPruning.core.distributed.communication.message import Message
-    from FedPruning.core.distributed.server.server_manager import ServerManager
+from core.distributed.communication.message import Message
+from core.distributed.server.server_manager import ServerManager
 
 class FedAdaPruningServerManager(ServerManager):
     def __init__(self, args, aggregator, comm=None, rank=0, size=0, backend="MPI", is_preprocessed=False, preprocessed_client_lists=None):
@@ -91,7 +87,7 @@ class FedAdaPruningServerManager(ServerManager):
         if b_all_received:
             global_model_params = self.aggregator.aggregate(t=self.round_idx, T_end=self.args.T_end, alpha=self.args.adjust_alpha)
             if self.args.enable_adaptive_aggregation == 1:
-                if not self.weight_momentum is None:
+                if self.weight_momentum is not None:
                     logging.info("Start adaptive weights aggregation===================================================================================")
                     for key in global_model_params.keys():
                         self.weight_momentum[key] = torch.tensor(self.weight_momentum[key], dtype=torch.float32)
@@ -104,7 +100,7 @@ class FedAdaPruningServerManager(ServerManager):
                 global_gradient = self.aggregator.aggregate_gradient()
                 if self.args.enable_adaptive_aggregation == 1:
                     logging.info("Start adaptive gradients aggregation===================================================================================")
-                    if not self.gradient_momentum is None:
+                    if self.gradient_momentum is not None:
                         for key in global_gradient.keys():
                             self.gradient_momentum[key] = torch.tensor(self.gradient_momentum[key], dtype=torch.float32)
                             global_gradient[key] = self.gradient_momentum[key] * self.gradient_beta + global_gradient[key] * (1 - self.gradient_beta)
