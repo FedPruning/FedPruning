@@ -138,8 +138,8 @@ def add_args(parser):
 
     parser.add_argument("--growth_data_mode", type=str, default="batch", help=" the number of data samples used for parameter growth, option are [ 'random', 'single', 'batch', 'entire']" )
     
-    parser.add_argument('--progressive_pruning', type=str, default='on', help='the switch of progressive pruning module, true for open and false for close')
-    parser.add_argument('--ABNS', type=str, default='off', help='the switch of Adaptive BN Selection module, true for open and false for close')
+    parser.add_argument('--progressive_pruning', type=int, default=1, help='the switch of progressive pruning module, 1 for open and 0 for close')
+    parser.add_argument('--ABNS', type=int, default=0, help='the switch of Adaptive BN Selection module, 1 for open and 0 for close')
     parser.add_argument('--ABNS_num_of_candidates', type=int, default=1, help='the num_of_candidates in Adaptive BN Selection module')
     
     args = parser.parse_args()
@@ -295,30 +295,30 @@ if __name__ == "__main__":
     output_dim_global = dataset[7]
     inner_model = create_model(args, model_name=args.model, output_dim=dataset[7])
     # create the sparse model
-    model = SparseModel(inner_model, target_density=args.target_density, )
+    model = SparseModel(inner_model, target_density=args.target_density, strategy=args.pruning_strategy)
     # print(f"the value of progressive_pruning is {args.progressive_pruning}, the type is {type(args.progressive_pruning)}")
 
     #----------convert ABNS and progressive_pruning to bool type
-    if args.progressive_pruning == 'off':
-        args.progressive_pruning = False
-    elif args.progressive_pruning == 'on':
-        args.progressive_pruning = True
-    else:
-        args.progressive_pruning = False
-    if args.ABNS == 'off':
-        args.ABNS = False
-    elif args.ABNS == 'on':
-        args.ABNS = True
-    else:
-        args.ABNS = False
+    # if args.progressive_pruning == 0:
+    #     args.progressive_pruning = False
+    # elif args.progressive_pruning == 1:
+    #     args.progressive_pruning = True
+    # else:
+    #     args.progressive_pruning = False
+    # if args.ABNS == 0:
+    #     args.ABNS = False
+    # elif args.ABNS == 1:
+    #     args.ABNS = True
+    # else:
+    #     args.ABNS = False
 
-    if args.progressive_pruning == True: 
+    if args.progressive_pruning == 1: 
         print('Progressive pruning is on.')
     else:
         print('Progressive pruning is off.')
     
     #args.ABNS = False
-    if args.ABNS == True:
+    if args.ABNS == 1:
         if type(args.ABNS_num_of_candidates) == int:
             print('ABNS is on. The number of candidates in ABNS is', args.ABNS_num_of_candidates)
             # model_list = list()

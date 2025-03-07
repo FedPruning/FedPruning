@@ -6,6 +6,8 @@ from .FedTinyClientManager import FedTinyClientManager
 from .FedTinyServerManager import FedTinyServerManager
 
 from api.standalone.fedtiny.my_model_trainer_classification import MyModelTrainer as MyModelTrainerCLS
+from api.standalone.fedtiny.my_model_trainer_language_model import MyModelTrainer as MyModelTrainerLM
+
 # from ...standalone.fedinitprune.my_model_trainer_nwp import MyModelTrainer as MyModelTrainerNWP
 # from ...standalone.fedinitprune.my_model_trainer_tag_prediction import MyModelTrainer as MyModelTrainerTAG
 
@@ -87,8 +89,11 @@ def init_server(
     preprocessed_sampling_lists=None,
 ):
     if model_trainer is None:
+        if args.dataset in ["tinystories",]:
+            model_trainer = MyModelTrainerLM(model, args.dataset)
+        else:
         #Sparse model generates trainer
-        model_trainer = MyModelTrainerCLS(model)
+            model_trainer = MyModelTrainerCLS(model)
     model_trainer.set_id(-1)
 
     # aggregator
@@ -109,10 +114,11 @@ def init_server(
     # start the distributed training
     backend = args.backend
     if preprocessed_sampling_lists is None:
-        server_manager = FedTinyServerManager(args, aggregator,output_dim_global, comm, rank, size, backend)
+        server_manager = FedTinyServerManager(args, model, aggregator,output_dim_global, comm, rank, size, backend)
     else:
         server_manager = FedTinyServerManager(
             args,
+            model,
             aggregator,
             output_dim_global,
             comm,
@@ -122,7 +128,7 @@ def init_server(
             is_preprocessed=True,
             preprocessed_client_lists=preprocessed_sampling_lists,
         )
-    if args.ABNS == True:
+    if args.ABNS == 1:
         #print('ABNS is on.')
         server_manager.send_ABNS_msg()
         server_manager.send_ABNS_info()
@@ -150,11 +156,11 @@ def init_client(
 ):
     client_index = process_id - 1
     if model_trainer is None:
-        # if args.dataset == "stackoverflow_lr":
-        #     model_trainer = MyModelTrainerTAG(model)
+        if args.dataset in ["tinystories",]:
+            model_trainer = MyModelTrainerLM(model, args.dataset)
         # elif args.dataset in ["fed_shakespeare", "stackoverflow_nwp"]:
         #     model_trainer = MyModelTrainerNWP(model)
-        # else:  # default model trainer is for classification problem
+        else:  # default model trainer is for classification problem
             model_trainer = MyModelTrainerCLS(model)
     model_trainer.set_id(client_index)
     backend = args.backend
@@ -168,7 +174,7 @@ def init_client(
         args,
         model_trainer,
     )
-    client_manager = FedTinyClientManager(args, trainer,  output_dim_global, comm, process_id, size, backend)
+    client_manager = FedTinyClientManager(args,model, trainer,  output_dim_global, comm, process_id, size, backend)
     # if args.ABNS == True:
     #     #print('ABNS is on.')
     #     client_manager.C2Ssend_ABNS_msg()

@@ -23,8 +23,10 @@ from .utils import transform_list_to_tensor, post_complete_message_to_sweep_proc
 
 
 class FedTinyClientManager(ClientManager):
-    def __init__(self, args, trainer, output_dim_global,comm=None, rank=0, size=0, backend="MPI"):
+    def __init__(self, args, model, trainer, output_dim_global,comm=None, rank=0, size=0, backend="MPI"):
         super().__init__(args, comm, rank, size, backend)
+        self.model = model
+        self.ABNS_seed_list = []
         self.trainer = trainer #FedTinyTrainer
         self.output_dim_global = output_dim_global
         self.num_rounds = args.comm_round
@@ -42,7 +44,7 @@ class FedTinyClientManager(ClientManager):
         
         
     def register_message_receive_handlers(self):
-        if self.args.ABNS == True:
+        if self.args.ABNS == 1:
             self.register_message_receive_handler(MyMessage.MSG_TYPE_S2C_ABNS,
                                               self.handle_message_ABNS_seed)
             self.register_message_receive_handler(MyMessage.MSG_TYPE_S2C_SYNC_BN_PARAMS_TO_CLIENT,
@@ -57,36 +59,15 @@ class FedTinyClientManager(ClientManager):
         client_index = msg_params.get(MyMessage.MSG_ARG_KEY_CLIENT_INDEX)
         self.mode = msg_params.get(MyMessage.MSG_ARG_KEY_MODE_CODE)
         self.round_idx =  msg_params.get(MyMessage.MSG_ARG_KEY_ROUND_IDX)
+        self.ABNS_seed_list = ABNS_seed_list
         bn_parameters_list = []
         local_sample_num = None
         # if self.args.is_mobile == 1:
         #     global_model_params = transform_list_to_tensor(global_model_params)
         for i in range(len(ABNS_seed_list)):
-            random.seed(ABNS_seed_list[i])
-            np.random.seed(ABNS_seed_list[i])
-            torch.manual_seed(ABNS_seed_list[i])
-            torch.cuda.manual_seed_all(ABNS_seed_list[i])
             print("ABNS_seed_list in client is",ABNS_seed_list[i])
-            #-----------------------------------------------------------------------------
-            
-            # create model.
-            # Note if the model is DNN (e.g., ResNet), the training will be very slow.
-            # In this case, please use our FedML distributed version (./experiments/distributed_fedprune)
-            print(self.args.model,self.output_dim_global)
-            model_name_tmp = self.args.model
-            output_dim = self.output_dim_global
-            if model_name_tmp == "resnet18_gn":
-                inner_model = resnet18_gn(num_classes=output_dim)
-            if model_name_tmp == "resnet18":
-                inner_model = resnet18(class_num=output_dim)
-            elif model_name_tmp == "resnet56":
-                inner_model = resnet56(class_num=output_dim)
-            elif model_name_tmp == "mobilenet":
-                inner_model = mobilenet(class_num=output_dim)
-            #inner_model = self.create_model(model_name = self.args.model, output_dim=self.output_dim_global)
-            # create the sparse model, perform magnitude pruning on model
-            model = SparseModel(inner_model, target_density=self.args.target_density)
-            #-----------------------------------------------------------------------------------
+            model = self.model
+            model.init_weights(seed = ABNS_seed_list[i], init_method = "kaiming_normal")
             model_params = model.cpu().state_dict()
             # 
             #logging.info(f"The type is {type(model_params)}, the params of model {i} is {model_params}")
@@ -102,11 +83,6 @@ class FedTinyClientManager(ClientManager):
         self.send_message(message)    
 
 
-
-        # self.trainer.update_model(global_model_params)
-        # self.trainer.update_dataset(int(client_index))
-        # self.__train()  FedTinyTrainer.model_trainer.model
-
     def handle_message_BN_params(self, msg_params):
         logging.info("handle_message_BN_params_from_server.")
         global_BN_params = msg_params.get(MyMessage.MSG_ARG_KEY_BN_PARAMS)
@@ -114,15 +90,12 @@ class FedTinyClientManager(ClientManager):
         self.mode = msg_params.get(MyMessage.MSG_ARG_KEY_MODE_CODE)
         self.round_idx =  msg_params.get(MyMessage.MSG_ARG_KEY_ROUND_IDX)
 
-        # if self.args.is_mobile == 1:
-        #     model_params = transform_list_to_tensor(model_params)
-
-        # if self.mode in [0, 3]:
-        #     mask_dict = msg_params.get(MyMessage.MSG_ARG_KEY_MODEL_MASKS)
-        #     self.trainer.trainer.model.mask_dict = mask_dict
-        #     self.trainer.trainer.model.apply_mask()
         loss_BN = []
         for c in range(len(global_BN_params)):
+            model = self.model
+            model.init_weights(seed = self.ABNS_seed_list[c], init_method = "kaiming_normal")
+            model_params = model.cpu().state_dict()
+            self.trainer.update_model(model_params)
             self.trainer.update_model(global_BN_params[c])
             self.trainer.update_dataset(int(client_index))
             _, loss_tmp, _ =self.trainer.test()
@@ -140,7 +113,7 @@ class FedTinyClientManager(ClientManager):
 
         if self.args.is_mobile == 1:
             global_model_params = transform_list_to_tensor(global_model_params)
-
+        
         self.trainer.update_model(global_model_params)
         self.trainer.update_dataset(int(client_index))
         self.__train()
@@ -188,16 +161,3 @@ class FedTinyClientManager(ClientManager):
         bn_parameters, local_sample_num = self.trainer.train_BN()#FedTinyTrainer.train()
         return bn_parameters, local_sample_num
     
-
-    def create_model(model_name, output_dim):
-        #logging.info("create_model. model_name = %s, output_dim = %s" % (model_name, output_dim))
-        model = None
-        if model_name == "resnet18_gn":
-            model = resnet18_gn(num_classes=output_dim)
-        if model_name == "resnet18":
-            model = resnet18(class_num=output_dim)
-        elif model_name == "resnet56":
-            model = resnet56(class_num=output_dim)
-        elif model_name == "mobilenet":
-            model = mobilenet(class_num=output_dim)
-        return model

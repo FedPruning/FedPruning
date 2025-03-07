@@ -4,7 +4,7 @@ import sys
 
 from .message_define import MyMessage
 from .utils import transform_tensor_to_list, post_complete_message_to_sweep_process
-
+from api.pruning.init_scheme import f_decay
 sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "../../../")))
 try:
     from core.distributed.communication.message import Message
@@ -76,7 +76,8 @@ class FedTinyCleanServerManager(ServerManager):
         if self.mode in [2, 3]:
             gradients = msg_params.get(MyMessage.MSG_ARG_KEY_MODEL_GRADIENT)
             self.aggregator.add_local_trained_gradient(sender_id - 1, gradients)
-            
+            #self.check_num_of_gradients(gradients)
+
         self.aggregator.add_local_trained_result(sender_id - 1, model_params, local_sample_number)
         b_all_received = self.aggregator.check_whether_all_receive()
         logging.info("b_all_received = " + str(b_all_received))
@@ -151,3 +152,16 @@ class FedTinyCleanServerManager(ServerManager):
         message.add_params(MyMessage.MSG_ARG_KEY_MODE_CODE, mode_code)
         message.add_params(MyMessage.MSG_ARG_KEY_MODEL_MASKS, mask_dict)
         self.send_message(message)
+    # def check_num_of_gradients(self, gradients):
+    #     for name, param in self.aggregator.trainer.model.model.named_parameters():
+    #             mask_dict = self.aggregator.trainer.model.mask_dict
+    #             if name in mask_dict:  
+    #                 active_num = (mask_dict[name] == 1).int().sum().item()
+    #                 k = int(f_decay(t=self.round_idx, T_end=self.args.T_end, alpha=self.args.adjust_alpha) * active_num)
+    #                 print('Attention: acitive_num: ', active_num,'k: ',k)
+    #                 # Find the k  largest gradients connections among the currently inactive connections
+    #                 inactive_indices = (mask_dict[name].view(-1) == 0).nonzero(as_tuple=False).view(-1).cpu()
+                    
+    #                 grad_inactive = gradients[name].abs().view(-1)[inactive_indices].cpu()
+
+    #                 print(f"Attention: Length of grad_inactive for parameter {name}: {len(grad_inactive)}")

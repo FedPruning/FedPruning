@@ -52,7 +52,44 @@ class SparseModel(nn.Module):
         self.model.to(device, *args, **kwargs)
         for name in self.mask_dict:
             self.mask_dict[name] = self.mask_dict[name].to(device, *args, **kwargs)
+    def init_weights(self, seed: int = 42, init_method: str = "kaiming_normal"):
+        """
+        Reinitialize the model weights with a specified seed and initialization method.
+        
+        Args:
+            seed (int): Random seed for reproducibility.
+            init_method (str): Weight initialization method. Options: "kaiming_normal", "xavier_uniform", etc.
+        """
+        torch.manual_seed(seed)  # Set random seed for reproducibility
 
+        # Define initialization methods
+        init_methods = {
+            "kaiming_normal": nn.init.kaiming_normal_,
+            "xavier_uniform": nn.init.xavier_uniform_,
+            "xavier_normal": nn.init.xavier_normal_,
+            "uniform": nn.init.uniform_,
+            "normal": nn.init.normal_,
+        }
+
+        if init_method not in init_methods:
+            raise ValueError(f"Invalid init_method: {init_method}. Supported methods: {list(init_methods.keys())}")
+
+        init_func = init_methods[init_method]
+
+        # Iterate over model parameters and reinitialize weights
+        for name, param in self.model.named_parameters():
+            # Skip ignored layers
+            if any(ignore in name for ignore in self.ignore_layers if isinstance(ignore, str)) or \
+               any(isinstance(param, ignore) for ignore in self.ignore_layers if isinstance(ignore, type)):
+                continue
+
+            # Reinitialize weights
+            if param.dim() > 1:  # Only initialize weights (not biases)
+                init_func(param)
+            elif "bias" in name:  # Initialize biases to zero
+                nn.init.constant_(param, 0)
+
+        logging.info(f"Model weights reinitialized with seed={seed} and init_method={init_method}")
     def _determine_sparse_layers(self):
         sparse_layer_set = self.layer_set.copy()
         ignore_partial_names = []
@@ -75,7 +112,8 @@ class SparseModel(nn.Module):
         def _remove_by_name(layer_set, partial_name):
             ###### remove partial names (can use prefix)########
             for layer_name in list(layer_set):
-                if re.match(partial_name, layer_name) is not None:
+                if partial_name in layer_name:
+                #if re.match(partial_name, layer_name) is not None:
                     layer_set.remove(layer_name)
                 # elif partial_name + ".weight" in layer_name:
                 #     sparse_layer_set.remove(layer_name)

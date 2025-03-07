@@ -23,9 +23,10 @@ except ImportError:
     from FedPruning.core.distributed.server.server_manager import ServerManager
 
 class FedTinyServerManager(ServerManager):
-    def __init__(self, args, aggregator, output_dim_global, comm=None, rank=0, size=0, backend="MPI", is_preprocessed=False, preprocessed_client_lists=None):
+    def __init__(self, args, model, aggregator, output_dim_global, comm=None, rank=0, size=0, backend="MPI", is_preprocessed=False, preprocessed_client_lists=None):
         super().__init__(args, comm, rank, size, backend)
         self.args = args
+        self.model = model
         self.aggregator = aggregator #FedTinyAggregator
         self.output_dim_global = output_dim_global
         self.round_num = args.comm_round
@@ -158,34 +159,12 @@ class FedTinyServerManager(ServerManager):
                     min_loss_index = i
             
             #-----------------------------------------------------------
-            random.seed(self.ABNS_seed_list[min_loss_index])
-            np.random.seed(self.ABNS_seed_list[min_loss_index])
-            torch.manual_seed(self.ABNS_seed_list[min_loss_index])
-            torch.cuda.manual_seed_all(self.ABNS_seed_list[min_loss_index])
             print(f"ABNS_seed_list index is {min_loss_index}, value is {self.ABNS_seed_list[min_loss_index]}")
-            #-----------------------------------------------------------------------------
-            
-            # create model.
-            # Note if the model is DNN (e.g., ResNet), the training will be very slow.
-            # In this case, please use our FedML distributed version (./experiments/distributed_fedprune)
-            print(self.args.model,self.output_dim_global)
-            model_name_tmp = self.args.model
-            output_dim = self.output_dim_global
-            if model_name_tmp == "resnet18_gn":
-                inner_model = resnet18_gn(num_classes=output_dim)
-            if model_name_tmp == "resnet18":
-                inner_model = resnet18(class_num=output_dim)
-            elif model_name_tmp == "resnet56":
-                inner_model = resnet56(class_num=output_dim)
-            elif model_name_tmp == "mobilenet":
-                inner_model = mobilenet(class_num=output_dim)
-            #inner_model = self.create_model(model_name = self.args.model, output_dim=self.output_dim_global)
-            # create the sparse model
-            model = SparseModel(inner_model, target_density=self.args.target_density)
-            #-----------------------------------------------------------------------------------
+
 
             #----------------------------TEST for aggregator
-
+            model = self.model
+            model.init_weights(seed = self.ABNS_seed_list[min_loss_index], init_method = "kaiming_normal")
             model_trainer = MyModelTrainerCLS(model)
             model_trainer.set_id(-1)
             self.aggregator.trainer = model_trainer
@@ -208,7 +187,7 @@ class FedTinyServerManager(ServerManager):
             # if aaa == 0:
             #     print(aaa)
             # select topk gradients
-            if self.args.progressive_pruning == True: 
+            if self.args.progressive_pruning == 1: 
                 #print('Progressive pruning is on.')
                 gradients = self.get_topk_gradients(gradients)
             # add gradient
@@ -305,6 +284,7 @@ class FedTinyServerManager(ServerManager):
         message.add_params(MyMessage.MSG_ARG_KEY_MODE_CODE, mode_code)
         message.add_params(MyMessage.MSG_ARG_KEY_MODEL_MASKS, mask_dict)
         self.send_message(message)
+
     def get_topk_gradients(self, gradients):
         for name, param in self.aggregator.trainer.model.model.named_parameters():
                 mask_dict = self.aggregator.trainer.model.mask_dict
@@ -317,8 +297,12 @@ class FedTinyServerManager(ServerManager):
                     
                     grad_inactive = gradients[name].abs().view(-1)[inactive_indices].cpu()
 
-                    _, topk_indices = torch.topk(grad_inactive, k, sorted=False)
-
+                    #print(f"Attention: Length of grad_inactive for parameter {name}: {len(grad_inactive)}")
+                    if len(grad_inactive) >= k:
+                        _, topk_indices = torch.topk(grad_inactive, k, sorted=False)
+                    else:
+                        print("k is smaller than number of grad_inactive, skip topk gradients")
+                        _, topk_indices = torch.topk(grad_inactive, len(grad_inactive), sorted=False)
                     mask_gradients = torch.zeros(gradients[name].view(-1).shape, dtype=torch.bool)
                     for idx in topk_indices:
                         mask_gradients[idx] = True 
@@ -327,5 +311,5 @@ class FedTinyServerManager(ServerManager):
                     #print("original gradient:",gradients[name],"non_zero_num: ",torch.count_nonzero(gradients[name]))
                     gradients[name].view(-1)[~mask_gradients.cpu()] = 0
                     #print("topk gradient:",gradients[name],"non_zero_num: ",torch.count_nonzero(gradients[name]))
-                    return gradients
+        return gradients
 

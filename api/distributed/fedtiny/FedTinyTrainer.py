@@ -44,16 +44,16 @@ class FedTinyTrainer(object):
 
     def test(self):
         # train data
-        train_metrics = self.trainer.test(self.train_local, self.device, self.args)
-        train_tot_correct, train_num_sample, train_loss = train_metrics['test_correct'], \
-                                                          train_metrics['test_total'], train_metrics['test_loss']
+        test_metrics = self.trainer.test(self.train_local, self.device, self.args)
+        test_total, test_loss, test_acc = test_metrics['test_total'], \
+                                                          test_metrics['Loss'], test_metrics['Accuracy']
 
         # # test data
         # test_metrics = self.trainer.test(self.test_local, self.device, self.args)
         # test_tot_correct, test_num_sample, test_loss = test_metrics['test_correct'], \
         #                                                   test_metrics['test_total'], test_metrics['test_loss']
 
-        return train_tot_correct, train_loss, train_num_sample
+        return test_total, test_loss, test_acc
     
     # def test(self):
     #     # train data

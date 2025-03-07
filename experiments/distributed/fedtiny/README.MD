@@ -1,7 +1,8 @@
 
 ## Quick Start
 ```
-CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_fedtiny_distributed_pytorch.sh resnet18 cifar10 100 10 500 5 0.1 0.1 --delta_T 10 --T_end 300 --num_eval 128 --frequency_of_the_test 10 --progressive_pruning on --ABNS on --ABNS_num_of_candidates 5
+CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_fedtiny_distributed_pytorch.sh resnet18 cifar10 100 10 500 5 0.1 0.1 --delta_T 10 --T_end 300 --num_eval 128 --frequency_of_the_test 10 --progressive_pruning 1 --ABNS 0 --ABNS_num_of_candidates 5
+CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_fedtiny_distributed_pytorch.sh resnet18 cifar10 100 10 500 5 0.1 0.1 --delta_T 10 --T_end 300 --num_eval 128 --frequency_of_the_test 10 --progressive_pruning 0 --ABNS 0 --ABNS_num_of_candidates 5
 ```
 
 ## Usage
@@ -27,7 +28,7 @@ where
 {--partition_alpha} refers to the partition alpha, higher partition alpha makes lower degree of data heterogeneity
 {--num_eval}is the number data samples for validation, -1 means using the whole testing dataset.
 {--frequency_of_the_test} the frequency to test/validate the performance during the training, using num_eval data samples
-{--progressive_pruning} the switch of progressive pruning module, on for open and off for close
-{--ABNS} the switch of Adaptive BN Selection module, on for open and off for close
+{--progressive_pruning} the switch of progressive pruning module, 1 for open and 0 for close
+{--ABNS} the switch of Adaptive BN Selection module, 1 for open and 0 for close
 {--ABNS_num_of_candidates} the num_of_candidates in Adaptive BN Selection module
 ```
