@@ -76,7 +76,12 @@ class FedTinyCleanAggregator(object):
 
         # logging.info("################aggregate: %d" % len(model_list))
         (num0, averaged_params) = model_list[0]
+
+        for k in self.trainer.model.mask_dict.keys():
+            logging.debug(f"mask name = {k}, shape = {self.trainer.model.mask_dict[k].shape}")
+
         for k in averaged_params.keys():
+            logging.debug(f"param name = {k}, shape = {averaged_params[k].shape}")
             for i in range(0, len(model_list)):
                 local_sample_number, local_model_params = model_list[i]
                 w = local_sample_number / training_num

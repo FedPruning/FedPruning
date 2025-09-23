@@ -29,9 +29,6 @@ class MyModelTrainer(ModelTrainer):
     def train(self, train_data, device, args, mode, round_idx = None):
 
         # mode 0 :  training with mask 
-        # mode 1 : training with mask 
-        # mode 2 : training with mask, calculate the gradient
-        # mode 3 : training with mask, calculate the gradient
         model = self.model
 
         model.to(device)
@@ -43,10 +40,8 @@ class MyModelTrainer(ModelTrainer):
         else:
             optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, self.model.parameters()), lr=args.lr, weight_decay=args.wd, amsgrad=True)
 
-        if mode in [2, 3]:
-            local_epochs = args.adjustment_epochs if args.adjustment_epochs is not None else args.epochs
-        else:
-            local_epochs = args.epochs
+
+        local_epochs = args.epochs
 
         epoch_loss = []
         for epoch in range(local_epochs):
@@ -69,24 +64,7 @@ class MyModelTrainer(ModelTrainer):
             #     batch_loss.append(loss.item())
             # epoch_loss.append(sum(batch_loss) / len(batch_loss))
             # logging.info('Client Index = {}\tEpoch: {}\tLoss: {:.6f}'.format(self.id, epoch, sum(epoch_loss) / len(epoch_loss)))
-
-        # Collect gradients
-        if mode in [2, 3]:
-            model.zero_grad()
-            if args.growth_data_mode == "random":
-                return {name: torch.randn_like(param, device='cpu').clone() for name, param in model.named_parameters() if param.requires_grad}
-
-            else:
-                for batch_idx, batch in enumerate(train_data):
-                    tokenized = self.tokenizer(batch['text'], padding=True, return_tensors='pt', max_length=256, truncation=True)['input_ids'].to(device)
-                    logits, loss = model(tokenized, tokenized)
-                    loss.backward()
-                    if args.growth_data_mode == "batch":
-                        break
-                    
-            gradients = {name: param.grad.data.cpu().clone() for name, param in model.named_parameters() if param.requires_grad}
-            model.zero_grad()
-            return gradients
+    
 
     def test(self, test_data, device, args):
         model = self.model

@@ -41,9 +41,12 @@ class FedRandPruneClientManager(ClientManager):
         client_index = msg_params.get(MyMessage.MSG_ARG_KEY_CLIENT_INDEX)
         self.mode = msg_params.get(MyMessage.MSG_ARG_KEY_MODE_CODE)
         self.round_idx =  msg_params.get(MyMessage.MSG_ARG_KEY_ROUND_IDX)
-
         if self.args.is_mobile == 1:
             global_model_params = transform_list_to_tensor(global_model_params)
+
+        mask_dict = msg_params.get(MyMessage.MSG_ARG_KEY_MODEL_MASKS)
+        self.trainer.trainer.model.mask_dict = mask_dict
+        self.trainer.trainer.model.apply_mask()
 
         self.trainer.update_model(global_model_params)
         self.trainer.update_dataset(int(client_index))

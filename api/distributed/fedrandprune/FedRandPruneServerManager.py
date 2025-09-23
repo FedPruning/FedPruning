@@ -39,10 +39,14 @@ class FedRandPruneServerManager(ServerManager):
         client_indexes = self.aggregator.client_sampling(self.round_idx, self.args.client_num_in_total,
                                                          self.args.client_num_per_round)
         global_model_params = self.aggregator.get_global_model_params()
+        self.aggregator.batch_generate_mask_dict()
         if self.args.is_mobile == 1:
             global_model_params = transform_tensor_to_list(global_model_params)
         for process_id in range(1, self.size):
-            self.send_message_init_config(process_id, global_model_params, client_indexes[process_id - 1], self.mode, self.round_idx)
+            mask_dict = self.aggregator.mask_dict[process_id - 1]
+            for k in mask_dict:
+                mask_dict[k] = mask_dict[k].cpu()
+            self.send_message_init_config(process_id, global_model_params, client_indexes[process_id - 1], self.mode, self.round_idx, mask_dict)
 
     def register_message_receive_handlers(self):
         self.register_message_receive_handler(MyMessage.MSG_TYPE_C2S_SEND_MODEL_TO_SERVER,
@@ -60,11 +64,7 @@ class FedRandPruneServerManager(ServerManager):
         b_all_received = self.aggregator.check_whether_all_receive()
         logging.info("b_all_received = " + str(b_all_received))
         if b_all_received:
-            global_model_params = self.aggregator.aggregate()
-
-            # regenerate the mask dict separately for each client
-            self.aggregator.batch_generate_mask_dict()
-                                                                                                                                                       
+            global_model_params = self.aggregator.aggregate()                                                                                                                                                       
             # logging.info("mask_dict after pruning and growing = " +str(mask_dict))
             self.aggregator.test_on_server_for_all_clients(self.round_idx)
             
@@ -96,6 +96,8 @@ class FedRandPruneServerManager(ServerManager):
             if self.args.is_mobile == 1:
                 global_model_params = transform_tensor_to_list(global_model_params)
             
+            # regenerate the mask dict separately for each client
+            self.aggregator.batch_generate_mask_dict()
             for receiver_id in range(1, self.size):
                 mask_dict = self.aggregator.mask_dict[receiver_id - 1]
                 for k in mask_dict:
@@ -103,12 +105,13 @@ class FedRandPruneServerManager(ServerManager):
                 self.send_message_sync_model_to_client(receiver_id, global_model_params,
                     client_indexes[receiver_id - 1], self.mode, self.round_idx, mask_dict)
 
-    def send_message_init_config(self:ServerManager, receive_id, global_model_params, client_index, mode_code, round_idx):
+    def send_message_init_config(self:ServerManager, receive_id, global_model_params, client_index, mode_code, round_idx, mask_dict=None):
         message = Message(MyMessage.MSG_TYPE_S2C_INIT_CONFIG, self.get_sender_id(), receive_id)
         message.add_params(MyMessage.MSG_ARG_KEY_MODEL_PARAMS, global_model_params)
         message.add_params(MyMessage.MSG_ARG_KEY_CLIENT_INDEX, str(client_index))
         message.add_params(MyMessage.MSG_ARG_KEY_ROUND_IDX, round_idx)
         message.add_params(MyMessage.MSG_ARG_KEY_MODE_CODE, mode_code)
+        message.add_params(MyMessage.MSG_ARG_KEY_MODEL_MASKS, mask_dict)
         self.send_message(message)
 
     def send_message_sync_model_to_client(self:ServerManager, receive_id, global_model_params, client_index, mode_code, round_idx,

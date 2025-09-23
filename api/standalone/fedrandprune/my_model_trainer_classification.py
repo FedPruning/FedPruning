@@ -24,9 +24,6 @@ class MyModelTrainer(ModelTrainer):
     def train(self, train_data, device, args, mode, round_idx = None):
 
         # mode 0 :  training with mask 
-        # mode 1 : training with mask 
-        # mode 2 : training with mask, calculate the gradient
-        # mode 3 : training with mask, calculate the gradient
         model = self.model
 
         model.to(device)
