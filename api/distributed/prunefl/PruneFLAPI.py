@@ -6,10 +6,8 @@ from .PruneFLTrainer import PruneFLTrainer
 from .PruneFLClientManager import PruneFLClientManager
 from .PruneFLServerManager import PruneFLServerManager
 
-from api.standalone.prunefl.my_model_trainer_classification import MyModelTrainer as MyModelTrainerCLS
-from api.standalone.prunefl.my_model_trainer_language_model import MyModelTrainer as MyModelTrainerLM
-# from ...standalone.fedinitprune.my_model_trainer_nwp import MyModelTrainer as MyModelTrainerNWP
-# from ...standalone.fedinitprune.my_model_trainer_tag_prediction import MyModelTrainer as MyModelTrainerTAG
+from .my_model_trainer_classification import MyModelTrainer as MyModelTrainerCLS
+from .my_model_trainer_language_model import MyModelTrainer as MyModelTrainerLM
 
 
 def FedML_init():

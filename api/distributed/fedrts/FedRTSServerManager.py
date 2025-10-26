@@ -3,19 +3,15 @@ import os, signal
 import sys
 
 import torch
+
 from .message_define import MyMessage
 from .utils import transform_tensor_to_list, post_complete_message_to_sweep_process
-from api.pruning.init_scheme import f_decay
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "../../../")))
-try:
-    from core.distributed.communication.message import Message
-    from core.distributed.server.server_manager import ServerManager
-except ImportError:
-    from FedPruning.core.distributed.communication.message import Message
-    from FedPruning.core.distributed.server.server_manager import ServerManager
+from core.distributed.communication.message import Message
+from core.distributed.server.server_manager import ServerManager
 
-class FedMefServerManager(ServerManager):
+class FedRTSServerManager(ServerManager):
     def __init__(self, args, aggregator, comm=None, rank=0, size=0, backend="MPI", is_preprocessed=False, preprocessed_client_lists=None):
         super().__init__(args, comm, rank, size, backend)
         self.args = args
@@ -26,6 +22,12 @@ class FedMefServerManager(ServerManager):
         self.preprocessed_client_lists = preprocessed_client_lists
         self.mode = 0 
 
+        # adaptive related
+        self.weight_beta = args.adaptive_beta
+        self.weight_momentum = None
+        self.gradient_beta = args.adaptive_beta
+        self.gradient_momentum = None
+
         # mode 0, the server send both weight and mask to clients, received the weight, perform weight aggregation, if t % \delta t == 0 and t <= t_end, go to mode 2, else, go to mode 1
         # mode 1, the server send weights, received the weights, perform weights aggregation, if t % \delta t == 0 and t <= t_end, go to mode 2, else, go to mode 1
         # mode 2, the server send weights, received the weights and gradients, perform weights and gradients aggregation, pruning and growing to produce new mask,  go to mode 0
@@ -33,32 +35,6 @@ class FedMefServerManager(ServerManager):
 
     def run(self):
         super().run()
-    
-    def get_topk_gradients(self, gradients):
-        for name, param in self.aggregator.trainer.model.model.named_parameters():
-            mask_dict = self.aggregator.trainer.model.mask_dict
-            if name in mask_dict:
-                active_num = (mask_dict[name] == 1).int().sum().item()
-                k = int(f_decay(t=self.round_idx, T_end=self.args.T_end, alpha=self.args.adjust_alpha) * active_num)
-                #print('Attention: acitive_num: ', active_num,'k: ',k)
-                # Find the k  largest gradients connections among the currently inactive connections
-                inactive_indices = (mask_dict[name].view(-1) == 0).nonzero(as_tuple=False).view(-1).cpu()
-                
-                try:
-                    grad_inactive = gradients[name].abs().view(-1)[inactive_indices].cpu()
-                    _, topk_indices = torch.topk(grad_inactive, k, sorted=False)
-                except:
-                    topk_indices = inactive_indices
-                    
-                mask_gradients = torch.zeros(gradients[name].view(-1).shape, dtype=torch.bool)
-                for idx in topk_indices:
-                    mask_gradients[idx] = True 
-                # zero_indices = [idx for idx in all_indices if idx not in grow_indices]
-                # gradients[name].view(-1)[:]
-                #print("original gradient:",gradients[name],"non_zero_num: ",torch.count_nonzero(gradients[name]))
-                gradients[name].view(-1)[~mask_gradients.cpu()] = 0
-                #print("topk gradient:",gradients[name],"non_zero_num: ",torch.count_nonzero(gradients[name]))
-        return gradients
 
     def send_init_msg(self):
         # sampling clients
@@ -103,20 +79,41 @@ class FedMefServerManager(ServerManager):
         local_sample_number = msg_params.get(MyMessage.MSG_ARG_KEY_NUM_SAMPLES)
         if self.mode in [2, 3]:
             gradients = msg_params.get(MyMessage.MSG_ARG_KEY_MODEL_GRADIENT)
-            if self.args.enable_topk_grad == True:
-                gradients = self.get_topk_gradients(gradients)
-
             self.aggregator.add_local_trained_gradient(sender_id - 1, gradients)
             
         self.aggregator.add_local_trained_result(sender_id - 1, model_params, local_sample_number)
         b_all_received = self.aggregator.check_whether_all_receive()
         logging.info("b_all_received = " + str(b_all_received))
         if b_all_received:
-            global_model_params = self.aggregator.aggregate()
+            global_model_params = self.aggregator.aggregate(t=self.round_idx, T_end=self.args.T_end, alpha=self.args.adjust_alpha)
+            if self.args.enable_adaptive_aggregation == 1:
+                if self.weight_momentum is not None:
+                    logging.info("Start adaptive weights aggregation===================================================================================")
+                    for key in global_model_params.keys():
+                        self.weight_momentum[key] = torch.tensor(self.weight_momentum[key], dtype=torch.float32)
+                        global_model_params[key] = self.weight_momentum[key] * self.weight_beta + global_model_params[key] * (1 - self.weight_beta)
+                        # global_model_params[key] = global_model_params[key] / (1 - self.weight_beta ** self.round_idx) # corrected momentum
+                self.weight_momentum = global_model_params
+                self.aggregator.set_global_model_params(global_model_params)
+
             if self.mode in [2, 3]:
                 global_gradient = self.aggregator.aggregate_gradient()
+                if self.args.enable_adaptive_aggregation == 1:
+                    logging.info("Start adaptive gradients aggregation===================================================================================")
+                    if self.gradient_momentum is not None:
+                        for key in global_gradient.keys():
+                            self.gradient_momentum[key] = torch.tensor(self.gradient_momentum[key], dtype=torch.float32)
+                            global_gradient[key] = self.gradient_momentum[key] * self.gradient_beta + global_gradient[key] * (1 - self.gradient_beta)
+                            # global_gradient[key] = global_gradient[key] / (1 - self.gradient_beta ** self.round_idx) # corrected momentum
+                    self.gradient_momentum = global_gradient
+
                 # update the global model which is cached at the server side
-                self.aggregator.trainer.model.adjust_mask_dict(global_gradient, t=self.round_idx, T_end=self.args.T_end, alpha=self.args.adjust_alpha)
+                if self.args.enable_ts == 1:
+                    self.aggregator.ts_pruning_growing(global_gradient, t=self.round_idx, T_end=self.args.T_end, alpha=self.args.adjust_alpha)
+                    logging.info("Start ts pruning&growing===================================================================================")
+                else:
+                    self.aggregator.trainer.model.adjust_mask_dict(global_gradient, t=self.round_idx, T_end=self.args.T_end, alpha=self.args.adjust_alpha)
+                # self.aggregator.trainer.model.adjust_mask_dict(global_gradient, t=self.round_idx, T_end=self.args.T_end, alpha=self.args.adjust_alpha)
                 self.aggregator.trainer.model.to(self.aggregator.device)
                 self.aggregator.trainer.model.apply_mask()
                 

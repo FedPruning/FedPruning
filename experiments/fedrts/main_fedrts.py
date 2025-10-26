@@ -23,7 +23,6 @@ from api.data_preprocessing.cifar100.data_loader import load_partition_data_cifa
 from api.data_preprocessing.cinic10.data_loader import load_partition_data_cinic10
 from api.data_preprocessing.svhn.data_loader import load_partition_data_svhn
 from api.data_preprocessing.tinystories.data_loader import load_partition_data_tinystories
-from api.model.nlp.gpt2 import GPT2Model, GPT2Config
 
 from api.model.cv.resnet_gn import resnet18 as resnet18_gn
 from api.model.cv.mobilenet import mobilenet
@@ -37,9 +36,9 @@ from torchvision.models import swin_t as SwinT
 from torchvision.models import vit_b_16 as ViT
 from torchvision.models import mnasnet0_75 as MNASNet
 
-from api.distributed.fedmef.FedMefAPI import FedML_init, FedML_FedMef_distributed
+from api.distributed.fedrts.FedRTSAPI import FedML_init, FedML_FedRTS_distributed
 from api.pruning.model_pruning import SparseModel
-from api.standalone.fedmef.sap.sapiter import to_sapit
+
 
 def add_args(parser):
     """
@@ -72,46 +71,44 @@ def add_args(parser):
     parser.add_argument(
         "--nlp_hidden_size", type=int, default=256, metavar="N", help="the hidden size for nlp model (default: 256) option: [64, 256, 1024]"
     )
-
+    
+    
     parser.add_argument(
         "--num_eval", type=int, default=128, help="the number of the data samples used for eval, -1 is the total testing dataset."
     )
-    parser.add_argument('--lr', type=float, default=0.001, metavar='LR',
-                        help='learning rate (default: 0.001)')
+    parser.add_argument('--lr', type=float, default=0.001, metavar='LR', help='learning rate (default: 0.001)')
 
     parser.add_argument("--epochs", type=int, default=5, metavar="EP", help="how many epochs will be trained locally")
 
-    parser.add_argument("--adjustment_epochs", type=int, default=None, help=" the number of local apoches used in model adjustment round, if it is set None, it is equal to the number of epoches for training round" )
-
     parser.add_argument("--comm_round", type=int, default=10, help="how many round of communications we shoud use")
 
-    parser.add_argument("--frequency_of_the_test", type=int, default=5, help="the frequency of the algorithms")
+    parser.add_argument("--frequency_of_the_test", type=int, default=10, help="the frequency of the algorithms")
     
     parser.add_argument('--pruning_strategy', type=str, default="ERK_magnitude",
         help='the distribution of layerwise density and the pruning method, options["uniform_magnitude", "ER_magnitude", "ERK_magnitude"]')
 
-    parser.add_argument('--target_density', type=float, default=0.5,
+    parser.add_argument('--target_density', type=float, default=0.1,
                         help='pruning target density')
 
     parser.add_argument('--delta_T', type=int, default=10, help='delta t for update')
 
-    parser.add_argument('--T_end', type=int, default=100, help='end of time for update')
+    parser.add_argument('--T_end', type=int, default=300, help='end of time for update')
 
     parser.add_argument("--adjust_alpha", type=float, default=0.2, help='the ratio of num elements for adjustments')
     
-    parser.add_argument("--enable_sap", type=int, default=0, help="use sap or not")
+    parser.add_argument("--adjustment_epochs", type=int, default=None, help=" the number of local apoches used in model adjustment round, if it is set None, it is equal to the number of epoches for training round" )
 
-    parser.add_argument("--sap_strategy", type=str, default="mink", help="strategy for sap")
+    parser.add_argument("--enable_adaptive_aggregation", type=int, default=0, help="use adaptive method")
 
-    parser.add_argument("--gamma", type=float, default=0.5, help="a sap rate gamma to train")
+    parser.add_argument("--adaptive_beta", type=float, default=0.1, help="beta for momentum in aggregation")
 
-    parser.add_argument("--lambda_l2", type=float, default=0.01, help="lambda_l2 of BaE")
+    parser.add_argument("--enable_ts", type=int, default=1, help="use thompson sampling")
 
-    parser.add_argument("--psi_of_lr", type=float, default=1.0, help="weight of adjusted learning rate in BaE")
+    parser.add_argument("--aggregated_gamma", type=float, default=0.5, help="weight for aggregated param")
 
-    parser.add_argument("--max_lr", type=float, default=0.1, help="max learning rate in adjustment")
+    parser.add_argument("--initial_distribution_ratio", type=float, default=10., help="ratio for initial beta distribution")
 
-    parser.add_argument("--enable_dynamic_lowest_k", type=int, default=0, help="is a switch for finding lowest k in training or marking lowest k before training")
+    parser.add_argument("--ts_beta_update", type=int, default=1, help="whether use (1 - r_t) for all beta")
 
     # Following arguments are seldom changed
     parser.add_argument(
@@ -123,7 +120,8 @@ def add_args(parser):
             "--gpu_mapping_file",
             type=str,
             default="gpu_mapping.yaml",
-            help="the gpu utilization file for servers and clients. If there is no gpu_util_file, gpu will not be used.",
+            help="the gpu utilization file for servers and clients. If there is no \
+                            gpu_util_file, gpu will not be used.",
         )
 
     parser.add_argument("--gpu_server_num", type=int, default=1, help="gpu_server_num")
@@ -148,7 +146,7 @@ def add_args(parser):
 
     parser.add_argument("--data_dir", type=str, default=None, help="data directory")
 
-    parser.add_argument("--client_optimizer", type=str, default="sgd", help="SGD with momentum; adam")
+    parser.add_argument("--client_optimizer", type=str, default="adam", help="SGD with momentum; adam")
 
     parser.add_argument("--growth_data_mode", type=str, default="batch", help=" the number of data samples used for parameter growth, option are [ 'random', 'single', 'batch', 'entire']" )
 
@@ -160,7 +158,6 @@ def load_data(args, dataset_name):
 
     if args.data_dir is None:
         args.data_dir = f"./../../../data/{dataset_name}"
-    
 
     if dataset_name == "tinystories":
         dataset_tuple = load_partition_data_tinystories(args.partition_method,
@@ -188,7 +185,6 @@ def load_data(args, dataset_name):
             )
         
     return dataset_tuple
-
 
 
 def create_model(args, model_name, output_dim):
@@ -238,7 +234,7 @@ if __name__ == "__main__":
     logging.info(args)
 
     # customize the process name
-    str_process_name = "FedMef (distributed):" + str(process_id)
+    str_process_name = "FedRTS (distributed):" + str(process_id)
     setproctitle.setproctitle(str_process_name)
 
     # customize the log format
@@ -265,12 +261,10 @@ if __name__ == "__main__":
     if process_id == 0:
         wandb.init(
             project="FedPruning",
-            name="FedMef_"
+            name="FedRTS_"
             + args.dataset 
             + "_"
-            + args.model 
-            + "_"
-            + ("dynamic_k" if args.enable_dynamic_lowest_k == 1 else "fixed_k")
+            + args.model
             ,
             config=args,
         )
@@ -307,14 +301,11 @@ if __name__ == "__main__":
     # Note if the model is DNN (e.g., ResNet), the training will be very slow.
     # In this case, please use our FedML distributed version (./experiments/distributed_fedprune)
     inner_model = create_model(args, model_name=args.model, output_dim=dataset[7])
-    # add sapit to model
-    if args.enable_sap:
-        inner_model = to_sapit(inner_model, args.sap_strategy, args.gamma, True)
     # create the sparse model
     model = SparseModel(inner_model, target_density=args.target_density, strategy=args.pruning_strategy)
 
     # start distributed training
-    FedML_FedMef_distributed(
+    FedML_FedRTS_distributed(
         process_id,
         worker_number,
         device,
