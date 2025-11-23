@@ -1,12 +1,13 @@
 from mpi4py import MPI
 
-from .FedUSTAggregator import FedUSTAggregator
-from .FedUSTTrainer import FedUSTTrainer
-from .FedUSTClientManager import FedUSTClientManager
-from .FedUSTServerManager import FedUSTServerManager
+from .FedRTSAggregator import FedRTSAggregator
+from .FedRTSTrainer import FedRTSTrainer
+from .FedRTSClientManager import FedRTSClientManager
+from .FedRTSServerManager import FedRTSServerManager
 
-from .my_model_trainer_classification import MyModelTrainer as MyModelTrainerCLS
-from .my_model_trainer_language_model import MyModelTrainer as MyModelTrainerLM
+from ..fedtinyclean.my_model_trainer_classification import MyModelTrainer as MyModelTrainerCLS
+from ..fedtinyclean.my_model_trainer_language_model import MyModelTrainer as MyModelTrainerLM
+
 
 def FedML_init():
     comm = MPI.COMM_WORLD
@@ -15,7 +16,7 @@ def FedML_init():
     return comm, process_id, worker_number
 
 
-def FedML_FedUST_distributed(
+def FedML_FedRTS_distributed(
     process_id,
     worker_number,
     device,
@@ -91,7 +92,7 @@ def init_server(
 
     # aggregator
     worker_num = size - 1
-    aggregator = FedUSTAggregator(
+    aggregator = FedRTSAggregator(
         train_data_global,
         test_data_global,
         train_data_num,
@@ -107,9 +108,9 @@ def init_server(
     # start the distributed training
     backend = args.backend
     if preprocessed_sampling_lists is None:
-        server_manager = FedUSTServerManager(args, aggregator, comm, rank, size, backend)
+        server_manager = FedRTSServerManager(args, aggregator, comm, rank, size, backend)
     else:
-        server_manager = FedUSTServerManager(
+        server_manager = FedRTSServerManager(
             args,
             aggregator,
             comm,
@@ -146,7 +147,7 @@ def init_client(
             model_trainer = MyModelTrainerCLS(model)
     model_trainer.set_id(client_index)
     backend = args.backend
-    trainer = FedUSTTrainer(
+    trainer = FedRTSTrainer(
         client_index,
         train_data_local_dict,
         train_data_local_num_dict,
@@ -156,5 +157,5 @@ def init_client(
         args,
         model_trainer,
     )
-    client_manager = FedUSTClientManager(args, trainer, comm, process_id, size, backend)
+    client_manager = FedRTSClientManager(args, trainer, comm, process_id, size, backend)
     client_manager.run()

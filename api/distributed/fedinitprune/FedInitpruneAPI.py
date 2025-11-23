@@ -5,9 +5,9 @@ from .FedInitpruneTrainer import FedInitpruneTrainer
 from .FedInitpruneClientManager import FedInitpruneClientManager
 from .FedInitpruneServerManager import FedInitpruneServerManager
 
-from api.standalone.fedinitprune.my_model_trainer_classification import MyModelTrainer as MyModelTrainerCLS
+from .my_model_trainer_classification import MyModelTrainer as MyModelTrainerCLS
 
-from api.standalone.fedinitprune.my_model_trainer_language_model import MyModelTrainer as MyModelTrainerLM
+from .my_model_trainer_language_model import MyModelTrainer as MyModelTrainerLM
 
 def FedML_init():
     comm = MPI.COMM_WORLD

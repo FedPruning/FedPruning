@@ -5,10 +5,8 @@ from .FedTinyCleanTrainer import FedTinyCleanTrainer
 from .FedTinyCleanClientManager import FedTinyCleanClientManager
 from .FedTinyCleanServerManager import FedTinyCleanServerManager
 
-from api.standalone.fedtinyclean.my_model_trainer_classification import MyModelTrainer as MyModelTrainerCLS
-from api.standalone.fedtinyclean.my_model_trainer_language_model import MyModelTrainer as MyModelTrainerLM
-# from ...standalone.fedinitprune.my_model_trainer_nwp import MyModelTrainer as MyModelTrainerNWP
-# from ...standalone.fedinitprune.my_model_trainer_tag_prediction import MyModelTrainer as MyModelTrainerTAG
+from .my_model_trainer_classification import MyModelTrainer as MyModelTrainerCLS
+from .my_model_trainer_language_model import MyModelTrainer as MyModelTrainerLM
 
 
 def FedML_init():

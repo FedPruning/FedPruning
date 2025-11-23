@@ -5,8 +5,8 @@ from .FedMefTrainer import FedMefTrainer
 from .FedMefClientManager import FedMefClientManager
 from .FedMefServerManager import FedMefServerManager
 
-from api.standalone.fedmef.my_model_trainer_classification import MyModelTrainer as MyModelTrainerCLS
-from api.standalone.fedmef.my_model_trainer_language_model import MyModelTrainer as MyModelTrainerLM
+from .my_model_trainer_classification import MyModelTrainer as MyModelTrainerCLS
+from .my_model_trainer_language_model import MyModelTrainer as MyModelTrainerLM
 def FedML_init():
     comm = MPI.COMM_WORLD
     process_id = comm.Get_rank()
