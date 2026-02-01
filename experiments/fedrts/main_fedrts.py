@@ -23,6 +23,7 @@ from api.data_preprocessing.cifar100.data_loader import load_partition_data_cifa
 from api.data_preprocessing.cinic10.data_loader import load_partition_data_cinic10
 from api.data_preprocessing.svhn.data_loader import load_partition_data_svhn
 from api.data_preprocessing.tinystories.data_loader import load_partition_data_tinystories
+from api.data_preprocessing.tinyimagenet.data_loader import load_partition_data_tiny
 
 from api.model.cv.resnet_gn import resnet18 as resnet18_gn
 from api.model.cv.mobilenet import mobilenet
@@ -149,12 +150,22 @@ def add_args(parser):
 def load_data(args, dataset_name):
 
     if args.data_dir is None:
-        args.data_dir = f"./../../../data/{dataset_name}"
+        if dataset_name == "tinyimagenet":
+            args.data_dir = f"./../../data/Tiny-ImageNet"
+        else:
+            args.data_dir = f"./../../data/{dataset_name}"
 
     if dataset_name == "tinystories":
         dataset_tuple = load_partition_data_tinystories(args.partition_method,
             args.partition_alpha, args.client_num_in_total, args.batch_size,  args.dataset_ratio)
-
+    elif dataset_name == "tinyimagenet":
+        dataset_tuple = load_partition_data_tiny(
+            args.data_dir,
+            args.partition_method,
+            args.partition_alpha,
+            args.client_num_in_total,
+            args.batch_size,
+        )
     else:
         if dataset_name == "cifar10":
             data_loader = load_partition_data_cifar10
