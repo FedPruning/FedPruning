@@ -16,13 +16,13 @@ grpcio
 grpcio-tools
 boto3==1.18.21
 loguru==0.5.3
-wandb==0.12.9
+wandb==0.24.2
 psutil
 pynvml
 gevent
 setproctitle
 networkx
-MNN==2.3.0
+MNN==3.0.0
 h5py
 joblib
 numpy<2.0

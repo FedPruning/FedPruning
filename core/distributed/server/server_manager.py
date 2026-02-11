@@ -3,12 +3,12 @@ from abc import abstractmethod
 
 from mpi4py import MPI
 
-from ..communication.mqtt_s3.mqtt_s3_multi_clients_comm_manager import MqttS3MultiClientsCommManager
-from ..communication.mqtt_s3.mqtt_s3_status_manager import MqttS3StatusManager
-from ..communication.trpc.trpc_comm_manager import TRPCCommManager
-from ..communication.gRPC.grpc_comm_manager import GRPCCommManager
+# from ..communication.mqtt_s3.mqtt_s3_multi_clients_comm_manager import MqttS3MultiClientsCommManager
+# from ..communication.mqtt_s3.mqtt_s3_status_manager import MqttS3StatusManager
+# from ..communication.trpc.trpc_comm_manager import TRPCCommManager
+# from ..communication.gRPC.grpc_comm_manager import GRPCCommManager
 from ..communication.mpi.com_manager import MpiCommunicationManager
-from ..communication.mqtt.mqtt_comm_manager import MqttCommManager
+# from ..communication.mqtt.mqtt_comm_manager import MqttCommManager
 from ..communication.observer import Observer
 
 
@@ -19,29 +19,30 @@ class ServerManager(Observer):
         self.rank = rank
 
         self.backend = backend
-        if backend == "MPI":
-            self.com_manager = MpiCommunicationManager(comm, rank, size, node_type="server")
-        elif backend == "MQTT":
-            HOST = "0.0.0.0"
-            # HOST = "broker.emqx.io"
-            PORT = 1883
-            self.com_manager = MqttCommManager(HOST, PORT, client_id=rank, client_num=size - 1)
-        elif backend == "MQTT_S3":
-            self.com_manager = MqttS3MultiClientsCommManager(
-                args.mqtt_config_path, args.s3_config_path, topic=args.run_id,
-                client_id=rank, client_num=size - 1, args=args)
-            self.com_manager_status = MqttS3StatusManager(
-                args.mqtt_config_path, args.s3_config_path, topic=args.run_id)
-        elif backend == "GRPC":
-            HOST = "0.0.0.0"
-            PORT = 50000 + rank
-            self.com_manager = GRPCCommManager(
-                HOST, PORT, ip_config_path=args.grpc_ipconfig_path, client_id=rank, client_num=size - 1
-            )
-        elif backend == "TRPC":
-            self.com_manager = TRPCCommManager(args.trpc_master_config_path, process_id=rank, world_size=size)
-        else:
-            self.com_manager = MpiCommunicationManager(comm, rank, size, node_type="server")
+        self.com_manager = MpiCommunicationManager(comm, rank, size, node_type="server")
+        # if backend == "MPI":
+        #     self.com_manager = MpiCommunicationManager(comm, rank, size, node_type="server")
+        # elif backend == "MQTT":
+        #     HOST = "0.0.0.0"
+        #     # HOST = "broker.emqx.io"
+        #     PORT = 1883
+        #     self.com_manager = MqttCommManager(HOST, PORT, client_id=rank, client_num=size - 1)
+        # elif backend == "MQTT_S3":
+        #     self.com_manager = MqttS3MultiClientsCommManager(
+        #         args.mqtt_config_path, args.s3_config_path, topic=args.run_id,
+        #         client_id=rank, client_num=size - 1, args=args)
+        #     self.com_manager_status = MqttS3StatusManager(
+        #         args.mqtt_config_path, args.s3_config_path, topic=args.run_id)
+        # elif backend == "GRPC":
+        #     HOST = "0.0.0.0"
+        #     PORT = 50000 + rank
+        #     self.com_manager = GRPCCommManager(
+        #         HOST, PORT, ip_config_path=args.grpc_ipconfig_path, client_id=rank, client_num=size - 1
+        #     )
+        # elif backend == "TRPC":
+        #     self.com_manager = TRPCCommManager(args.trpc_master_config_path, process_id=rank, world_size=size)
+        # else:
+        #     self.com_manager = MpiCommunicationManager(comm, rank, size, node_type="server")
         self.com_manager.add_observer(self)
         self.message_handler_dict = dict()
 
