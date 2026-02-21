@@ -17,7 +17,7 @@
 - **[2026-01]** 🎉 FedPruning framework is officially released!
 - **[2025-09]** 🎉 Our work [FedRTS](https://arxiv.org/abs/2501.19122), built on FedPruning, has been accepted to **NeurIPS 2025**!
 
-## Installation
+## 🔧 Installation & Quick Start
 
 ### Prerequisites
 
@@ -47,44 +47,15 @@ pip install -r requirements.txt
 ```
 
 
-## Quick Start
-
-### Command Line Interface
+### Quick Start 
 
 ```bash
 cd experiments/fedtinyclean
 CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_fedtinyclean_distributed_pytorch.sh resnet18 cifar10 100 10 500 5 0.1 0.1 --delta_T 10 --T_end 300 --num_eval 128 --frequency_of_the_test 10
 ```
 
-## Documentation
+## ✅ Supported Methods
 
-### Project Structure
-
-```
-FedPruning/
-├── api/
-│   ├── data_preprocessing/
-│   ├── distributed/
-│   ├── model/
-│   │   ├── cv/
-│   │   ├── finance/
-│   │   ├── linear/
-│   │   ├── mobile/
-│   │   ├── nlp/
-│   ├── pruning/
-│   └── utils/
-├── core/
-│   ├── distributed/
-│   ├── non_iid_partition/
-│   ├── robustness/
-│   ├── trainer/
-├── data/
-├── experiments/
-```
-
-## Supported Methods
-
-### ✅ Completed
 - [x] FedAVG
 - [x] FedTiny
 - [x] FedMef
@@ -93,39 +64,7 @@ FedPruning/
 - [x] PruneFL
 - [x] FedSGC
 
-### ⏳ To Do
-- [ ] DWNP
-- [ ] FedDIP
-
-
-## Supported Datasets
-
-- [x] **CIFAR-10**
-- [x] **CIFAR-100**
-- [x] **CINIC-10**
-- [x] **SVHN**
-- [x] **Tiny-ImageNet**
-
-## Experiments
-
-### Reproducing Paper Results
-
-```bash
-# Take FedRTS as an example
-# CV Task 
-CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_fedrts_distributed_pytorch.sh resnet18 cifar10 100 10 500 5 0.5 0.001 --delta_T 10 --partition_alpha 0.5 --adjust_alpha 0.2
-
-CUDA_VISIBLE_DEVICES=4,5,6,7 sh run_fedrts_distributed_pytorch.sh resnet18 cifar10 100 10 500 5 0.1 0.001 --delta_T 10 --T_end 300 --num_eval 128 --frequency_of_the_test 10 --aggregated_gamma 0.5 --initial_distribution_ratio 1.0 --client_optimizer adam
-
-# NLP task
-CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_fedrts_distributed_pytorch.sh gpt2 tinystories 100 10 200 1 0.1 0.1 --delta_T 10 --T_end 100 --num_eval 128 --frequency_of_the_test 10 --partition_alpha 5 --batch_size 16
-
-CUDA_VISIBLE_DEVICES=0,1,2,3 sh run_fedrts_distributed_pytorch.sh gpt2 tinystories 100 10 500 5 0.1 0.1 --delta_T 10 --T_end 300 --num_eval 128 --frequency_of_the_test 10 --partition_alpha 5 --batch_size 16
-```
-
-
-
-## Citation
+## 📖 Citation
 
 If you find this work useful, please cite our paper:
 
