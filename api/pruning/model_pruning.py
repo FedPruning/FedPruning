@@ -12,14 +12,14 @@ class SparseModel(nn.Module):
                 #  strategy:str="uniform_magnitude",
                 strategy:str="ERK_magnitude",
                  mask_dict: dict = {},
-                 ignore_layers:list[int, str, type]=[".*bias.*", nn.BatchNorm2d, ".*bn.*", nn.LayerNorm, ".*ln.*"], 
+                 ignore_layers: list[int, str, type]=[0, "bias", nn.BatchNorm2d, "bn"], 
                  device = None,
                  ):
         super(SparseModel, self).__init__()
         # strategy is a str that [sparsity_distribution]_[pruning_strategy]
         # e.g. uniform_magnitude
 
-        self.model = model
+        self.model: nn.Module = model
         self.mask_dict = mask_dict
         self.strategy = strategy
         self.target_density = target_density
@@ -52,7 +52,44 @@ class SparseModel(nn.Module):
         self.model.to(device, *args, **kwargs)
         for name in self.mask_dict:
             self.mask_dict[name] = self.mask_dict[name].to(device, *args, **kwargs)
+    def init_weights(self, seed: int = 42, init_method: str = "kaiming_normal"):
+        """
+        Reinitialize the model weights with a specified seed and initialization method.
+        
+        Args:
+            seed (int): Random seed for reproducibility.
+            init_method (str): Weight initialization method. Options: "kaiming_normal", "xavier_uniform", etc.
+        """
+        torch.manual_seed(seed)  # Set random seed for reproducibility
 
+        # Define initialization methods
+        init_methods = {
+            "kaiming_normal": nn.init.kaiming_normal_,
+            "xavier_uniform": nn.init.xavier_uniform_,
+            "xavier_normal": nn.init.xavier_normal_,
+            "uniform": nn.init.uniform_,
+            "normal": nn.init.normal_,
+        }
+
+        if init_method not in init_methods:
+            raise ValueError(f"Invalid init_method: {init_method}. Supported methods: {list(init_methods.keys())}")
+
+        init_func = init_methods[init_method]
+
+        # Iterate over model parameters and reinitialize weights
+        for name, param in self.model.named_parameters():
+            # Skip ignored layers
+            if any(ignore in name for ignore in self.ignore_layers if isinstance(ignore, str)) or \
+               any(isinstance(param, ignore) for ignore in self.ignore_layers if isinstance(ignore, type)):
+                continue
+
+            # Reinitialize weights
+            if param.dim() > 1:  # Only initialize weights (not biases)
+                init_func(param)
+            elif "bias" in name:  # Initialize biases to zero
+                nn.init.constant_(param, 0)
+
+        logging.info(f"Model weights reinitialized with seed={seed} and init_method={init_method}")
     def _determine_sparse_layers(self):
         sparse_layer_set = self.layer_set.copy()
         ignore_partial_names = []
@@ -75,7 +112,8 @@ class SparseModel(nn.Module):
         def _remove_by_name(layer_set, partial_name):
             ###### remove partial names (can use prefix)########
             for layer_name in list(layer_set):
-                if re.match(partial_name, layer_name) is not None:
+                if partial_name in layer_name:
+                #if re.match(partial_name, layer_name) is not None:
                     layer_set.remove(layer_name)
                 # elif partial_name + ".weight" in layer_name:
                 #     sparse_layer_set.remove(layer_name)
@@ -129,12 +167,15 @@ class SparseModel(nn.Module):
 
         return  layer_density_dict
 
-
-    def _init_prune(self, **kwargs):
+    def generate_mask_dict(self, **kwargs):
         layer_density_strategy, pruning_strategy = self.strategy.split("_")
-        layer_density_dict = generate_layer_density_dict(self.layer_shape_dict, self.num_overall_elements,self.sparse_layer_set, self.target_density, layer_density_strategy)
+        effective_target_density = kwargs.get("target_density_override", self.target_density)
+        layer_density_dict = generate_layer_density_dict(self.layer_shape_dict, self.num_overall_elements,self.sparse_layer_set, effective_target_density, layer_density_strategy)
         model_mask = pruning(self.model, layer_density_dict, pruning_strategy)
         return layer_density_dict, model_mask
+
+    def _init_prune(self, **kwargs):
+        return self.generate_mask_dict(**kwargs)
 
     def parameters(self, **kwargs):
         return self.model.parameters(**kwargs)
