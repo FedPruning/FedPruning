@@ -1,0 +1,4 @@
+# Please check "GPU_MAPPING.md" to see how to define the topology
+
+mapping_default:
+    four_gpu: [3, 3, 3, 2]
